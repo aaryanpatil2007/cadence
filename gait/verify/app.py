@@ -154,8 +154,10 @@ def create_app(store: Store | None = None) -> FastAPI:
                           biometric=biometric, kyc_passed=kyc_passed,
                           challenge_passed=challenge_passed)
 
+        cust = (identity or {}).get("name")
         db.audit(body.action, device_id, score, result["decision"],
-                 result["reason"] or result["decision"])
+                 result["reason"] or result["decision"], customer=cust,
+                 amount=amount, trust=result["trust"], factors=result["factors"])
         return {"decision": result["decision"], "score": score,
                 "reason": result["reason"] or {
                     "allow": "all signals clear",
@@ -187,12 +189,77 @@ def create_app(store: Store | None = None) -> FastAPI:
     def policy():
         return load_policy()
 
+    # ---------------- Cadence Console ----------------
+    @app.get("/console/events")
+    def console_events(limit: int = 40):
+        return {"events": db.events(limit)}
+
+    @app.get("/console/identities")
+    def console_identities():
+        return {"identities": db.identities_all()}
+
+    @app.get("/console/stats")
+    def console_stats():
+        return db.stats()
+
+    @app.get("/console/audit")
+    def console_audit():
+        return db.audit_chain()
+
+    @app.post("/console/seed")
+    def console_seed(n: int = 26):
+        from . import console_demo
+        console_demo.seed(db, n)
+        return {"ok": True, **db.stats()}
+
+    @app.get("/console/stream")
+    async def console_stream(request: Request):
+        import asyncio
+        import json as _json
+        from sse_starlette.sse import EventSourceResponse
+
+        async def gen():
+            last_id = None
+            while True:
+                if await request.is_disconnected():
+                    break
+                evs = db.events(8)
+                fresh = [e for e in evs if last_id is None or e["id"] > last_id]
+                if evs:
+                    last_id = evs[0]["id"]
+                for e in reversed(fresh):
+                    yield {"event": "txn", "data": _json.dumps(e)}
+                yield {"event": "stats", "data": _json.dumps(db.stats())}
+                await asyncio.sleep(1.0)
+        return EventSourceResponse(gen())
+
     return app
 
 
 def main() -> None:
+    import os
     import uvicorn
-    uvicorn.run(create_app(), host="0.0.0.0", port=7800, log_level="warning")
+    store = Store()
+    app = create_app(store)
+    if os.environ.get("CADENCE_DEMO") == "1":
+        import random
+        import threading
+        from . import console_demo
+        if store.stats()["total"] == 0:
+            console_demo.seed(store)
+            print("[verifier] demo population seeded")
+
+        def pulse():
+            rng = random.Random()
+            while True:
+                time.sleep(random.uniform(6, 12))
+                try:
+                    console_demo.next_event(store, rng)
+                except Exception:
+                    pass
+        threading.Thread(target=pulse, daemon=True).start()
+        print("[verifier] live demo pulse active")
+    uvicorn.run(app, host="0.0.0.0", port=7800, log_level="warning")
 
 
 if __name__ == "__main__":

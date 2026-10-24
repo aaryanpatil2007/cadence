@@ -1,6 +1,8 @@
-"""Verifier persistence: devices, nonces, audit log (sqlite)."""
+"""Verifier persistence: devices, nonces, hash-chained audit log (sqlite)."""
 from __future__ import annotations
 
+import hashlib
+import json
 import secrets
 import sqlite3
 import time
@@ -9,6 +11,7 @@ from pathlib import Path
 from gait.paths import data_root
 
 NONCE_TTL_S = 30
+GENESIS_HASH = "0" * 64
 
 
 class Store:
@@ -26,7 +29,9 @@ class Store:
             used INTEGER DEFAULT 0);
         CREATE TABLE IF NOT EXISTS audit(
             id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, action TEXT,
-            device_id TEXT, score REAL, decision TEXT, reason TEXT);
+            device_id TEXT, score REAL, decision TEXT, reason TEXT,
+            customer TEXT, amount REAL, trust REAL, factors TEXT,
+            prev_hash TEXT, hash TEXT);
         CREATE TABLE IF NOT EXISTS identity(
             device_id TEXT PRIMARY KEY, name TEXT, verified INTEGER,
             ofac_clear INTEGER, mode TEXT, ts REAL,
@@ -78,12 +83,26 @@ class Store:
         return "ok"
 
     def audit(self, action: str, device_id: str | None, score: float | None,
-              decision: str, reason: str) -> None:
+              decision: str, reason: str, customer: str | None = None,
+              amount: float | None = None, trust: float | None = None,
+              factors: list | None = None, ts: float | None = None) -> dict:
+        """Append a tamper-evident record. hash = SHA-256(prev_hash + payload),
+        so any edit to history breaks the chain from that point forward."""
+        ts = time.time() if ts is None else ts
+        last = self.db.execute("SELECT hash FROM audit ORDER BY id DESC LIMIT 1").fetchone()
+        prev_hash = last[0] if last else GENESIS_HASH
+        factors_json = json.dumps(factors or [], separators=(",", ":"))
+        payload = f"{prev_hash}|{ts:.3f}|{action}|{device_id}|{customer}|" \
+                  f"{amount}|{score}|{trust}|{decision}|{reason}"
+        h = hashlib.sha256(payload.encode()).hexdigest()
         self.db.execute(
-            "INSERT INTO audit(ts, action, device_id, score, decision, reason) "
-            "VALUES(?,?,?,?,?,?)",
-            (time.time(), action, device_id, score, decision, reason))
+            "INSERT INTO audit(ts, action, device_id, score, decision, reason, "
+            "customer, amount, trust, factors, prev_hash, hash) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            (ts, action, device_id, score, decision, reason, customer, amount,
+             trust, factors_json, prev_hash, h))
         self.db.commit()
+        return {"hash": h, "prev_hash": prev_hash, "ts": ts}
 
     def set_identity(self, device_id: str, name: str, verified: bool,
                      ofac_clear: bool, mode: str, credit_score: int | None,
@@ -152,7 +171,56 @@ class Store:
 
     def audit_tail(self, limit: int = 50) -> list[dict]:
         rows = self.db.execute(
-            "SELECT ts, action, device_id, score, decision, reason FROM audit "
+            "SELECT ts, action, device_id, score, decision, reason, hash FROM audit "
             "ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(ts=r[0], action=r[1], device_id=r[2], score=r[3],
-                     decision=r[4], reason=r[5]) for r in rows]
+                     decision=r[4], reason=r[5], hash=r[6]) for r in rows]
+
+    def events(self, limit: int = 40, kind: str = "transfer") -> list[dict]:
+        """Rich transaction events for the Console stream (transfers only)."""
+        rows = self.db.execute(
+            "SELECT id, ts, customer, amount, score, trust, decision, reason, "
+            "factors, hash FROM audit WHERE action LIKE ? "
+            "ORDER BY id DESC LIMIT ?", (f"{kind}%", limit)).fetchall()
+        out = []
+        for r in rows:
+            out.append(dict(id=r[0], ts=r[1], customer=r[2], amount=r[3],
+                            score=r[4], trust=r[5], decision=r[6], reason=r[7],
+                            factors=json.loads(r[8] or "[]"), hash=r[9]))
+        return out
+
+    def identities_all(self) -> list[dict]:
+        rows = self.db.execute(
+            "SELECT name, verified, ofac_clear, mode, credit_score, credit_band, "
+            "fraud_risk, fraud_level, ts FROM identity ORDER BY ts DESC").fetchall()
+        return [dict(name=r[0], verified=bool(r[1]), ofac_clear=bool(r[2]),
+                     mode=r[3], credit_score=r[4], credit_band=r[5],
+                     fraud_risk=r[6], fraud_level=r[7], ts=r[8]) for r in rows]
+
+    def stats(self) -> dict:
+        row = self.db.execute(
+            "SELECT COUNT(*), "
+            "SUM(decision='allow'), SUM(decision='deny'), SUM(decision='stepup'), "
+            "AVG(trust) FROM audit WHERE action LIKE 'transfer%'").fetchone()
+        total = row[0] or 0
+        return {"total": total, "allowed": row[1] or 0, "denied": row[2] or 0,
+                "stepup": row[3] or 0,
+                "avg_trust": round(row[4], 3) if row[4] is not None else None,
+                "approval_rate": round((row[1] or 0) / total, 3) if total else None}
+
+    def audit_chain(self) -> dict:
+        """Full chain oldest-first + a verification result (for export)."""
+        rows = self.db.execute(
+            "SELECT id, ts, action, device_id, customer, amount, score, trust, "
+            "decision, reason, prev_hash, hash FROM audit ORDER BY id ASC").fetchall()
+        chain, prev, intact = [], GENESIS_HASH, True
+        for r in rows:
+            payload = f"{r[10]}|{r[1]:.3f}|{r[2]}|{r[3]}|{r[4]}|{r[5]}|{r[6]}|{r[7]}|{r[8]}|{r[9]}"
+            recomputed = hashlib.sha256(payload.encode()).hexdigest()
+            ok = (r[10] == prev) and (recomputed == r[11])
+            intact = intact and ok
+            chain.append(dict(seq=r[0], ts=r[1], action=r[2], customer=r[4],
+                              amount=r[5], decision=r[8], reason=r[9],
+                              prev_hash=r[10], hash=r[11], valid=ok))
+            prev = r[11]
+        return {"intact": intact, "length": len(chain), "entries": chain}
