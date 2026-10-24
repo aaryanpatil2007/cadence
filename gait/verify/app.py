@@ -215,6 +215,26 @@ def create_app(store: Store | None = None) -> FastAPI:
         console_demo.seed(db, n)
         return {"ok": True, **db.stats()}
 
+    @app.get("/console/profiles")
+    def console_profiles():
+        from . import console_demo
+        return {"profiles": console_demo.profiles(db)}
+
+    @app.get("/console/alerts")
+    def console_alerts():
+        from . import console_demo
+        return {"alerts": console_demo.alerts(db)}
+
+    @app.get("/console/devices")
+    def console_devices():
+        from . import console_demo
+        return {"devices": console_demo.devices(db)}
+
+    @app.get("/console/integrations")
+    def console_integrations():
+        from . import console_demo
+        return console_demo.integrations(db)
+
     @app.get("/console/stream")
     async def console_stream(request: Request):
         import asyncio

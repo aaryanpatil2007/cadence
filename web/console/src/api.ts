@@ -20,11 +20,21 @@ export type AuditEntry = {
   prev_hash: string; hash: string; valid: boolean;
 };
 
+export type Session = { id: string; kind: string; note: string; windows: number; mean: number; curve: number[]; minutes_ago: number };
+export type Profile = { name: string; device: string; model_auc: number; windows_trained: number; sessions: Session[]; flagged: number };
+export type Alert = { ts: number; severity: string; kind: string; customer: string | null; amount: number | null; detail: string; status: string };
+export type Device = { owner: string; hardware: string; network: string; trust: string; attempts: number; fp: string };
+export type Integration = { name: string; status: string; detail: string; calls: number | null };
+
 const j = (p: string) => fetch(p).then((r) => r.json());
 export const getEvents = () => j("/console/events?limit=40").then((d) => d.events as Event[]);
 export const getIdentities = () => j("/console/identities").then((d) => d.identities as Identity[]);
 export const getStats = () => j("/console/stats") as Promise<Stats>;
 export const getAudit = () => j("/console/audit") as Promise<{ intact: boolean; length: number; entries: AuditEntry[] }>;
+export const getProfiles = () => j("/console/profiles").then((d) => d.profiles as Profile[]);
+export const getAlerts = () => j("/console/alerts").then((d) => d.alerts as Alert[]);
+export const getDevices = () => j("/console/devices").then((d) => d.devices as Device[]);
+export const getIntegrations = () => j("/console/integrations") as Promise<Record<string, Integration>>;
 
 export function subscribeStream(onTxn: (e: Event) => void, onStats: (s: Stats) => void): () => void {
   const es = new EventSource("/console/stream");

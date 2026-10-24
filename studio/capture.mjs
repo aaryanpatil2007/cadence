@@ -13,31 +13,38 @@ const INIT = `
 window.__cad = (() => {
   const clamp = (x,a,b)=>Math.min(b,Math.max(a,x));
   const easeInOut = t => t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
-  let cur;
+  let cur, fadeTimer;
+  // a small, realistic macOS-style pointer (SVG arrow) — hidden unless moving
+  const ARROW = '<svg width="20" height="20" viewBox="0 0 24 24" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">'+
+    '<path d="M5 3 L5 19 L9.2 15 L12 21 L15 19.6 L12.2 13.8 L18 13.6 Z" fill="#111" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>';
   function cursor(){
     if(cur) return cur;
     cur = document.createElement('div');
-    cur.style.cssText = 'position:fixed;z-index:999999;width:22px;height:22px;left:0;top:0;'+
-      'pointer-events:none;transition:none;will-change:transform;'+
-      'background:radial-gradient(circle at 32% 30%, #fff, #e8e8ee 42%, #b8b8c4 100%);'+
-      'border-radius:50% 50% 50% 2px;box-shadow:0 3px 10px rgba(0,0,0,.45);transform:translate(-2px,-2px) rotate(-18deg)';
+    cur.style.cssText = 'position:fixed;z-index:999999;left:0;top:0;pointer-events:none;'+
+      'opacity:0;transition:opacity .18s ease;will-change:transform,opacity';
+    cur.innerHTML = ARROW;
     document.body.appendChild(cur);
-    cur._x=window.innerWidth/2; cur._y=window.innerHeight/2; place();
+    cur._x=-80; cur._y=window.innerHeight+80; place();   // parked off-screen
     return cur;
   }
-  function place(){ cur.style.transform='translate('+cur._x+'px,'+cur._y+'px) rotate(-18deg)'; }
+  function place(){ cur.style.transform='translate('+cur._x+'px,'+cur._y+'px)'; }
+  function show(){ clearTimeout(fadeTimer); cursor().style.opacity='1'; }
+  function idle(){ clearTimeout(fadeTimer); fadeTimer=setTimeout(()=>{ if(cur) cur.style.opacity='0'; }, 650); }
   function pos(){ const c=cursor(); return {x:c._x,y:c._y}; }
-  function move(x,y,ms){ const c=cursor(); const sx=c._x,sy=c._y; const t0=performance.now();
+  function move(x,y,ms){ const c=cursor(); show();
+    // if parked off-screen, teleport near the target first so it doesn't streak
+    if(c._y>window.innerHeight){ c._x=clamp(x+120,40,window.innerWidth-40); c._y=clamp(y+90,40,window.innerHeight-40); place(); }
+    const sx=c._x,sy=c._y; const t0=performance.now();
     return new Promise(res=>{ (function loop(now){ const t=clamp((now-t0)/ms,0,1); const e=easeInOut(t);
       c._x=sx+(x-sx)*e; c._y=sy+(y-sy)*e; place();
-      if(t<1) requestAnimationFrame(loop); else res(); })(t0); }); }
-  function pulse(){ const c=cursor(); const r=document.createElement('div');
+      if(t<1) requestAnimationFrame(loop); else { idle(); res(); } })(t0); }); }
+  function pulse(){ const c=cursor(); show(); const r=document.createElement('div');
     r.style.cssText='position:fixed;z-index:999998;left:'+c._x+'px;top:'+c._y+'px;width:8px;height:8px;'+
-      'border:2px solid rgba(94,158,255,.9);border-radius:50%;pointer-events:none;transform:translate(-50%,-50%)';
+      'border:2px solid rgba(0,84,61,.8);border-radius:50%;pointer-events:none;transform:translate(-50%,-50%)';
     document.body.appendChild(r); const t0=performance.now();
     (function loop(now){ const t=clamp((now-t0)/420,0,1); const s=1+t*3.4;
       r.style.width=(8*s)+'px'; r.style.height=(8*s)+'px'; r.style.opacity=String(1-t);
-      if(t<1) requestAnimationFrame(loop); else r.remove(); })(t0); }
+      if(t<1) requestAnimationFrame(loop); else r.remove(); })(t0); idle(); }
   function scrollTo(el, top, ms){ const t0=performance.now(); const s=el.scrollTop;
     return new Promise(res=>{ (function loop(now){ const t=clamp((now-t0)/ms,0,1); const e=easeInOut(t);
       el.scrollTop=s+(top-s)*e; if(t<1) requestAnimationFrame(loop); else res(); })(t0); }); }
