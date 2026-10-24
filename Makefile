@@ -47,6 +47,9 @@ test:
 nessie-smoke:
 	$(PY) -m bank.nessie
 
+diagnose:
+	$(PY) scripts/diagnose_live.py 60
+
 pretrain:
 	$(PY) -m gait.model.pretrain
 

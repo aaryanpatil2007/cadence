@@ -85,17 +85,33 @@ class RollingScore:
         self.tau_s = tau_s
         self.S: float | None = None
         self._last_decay_t: float | None = None
+        self._last_p: float | None = None
 
     def update(self, p: float, hop_s: float, weight: float = 1.0) -> float:
         """EWMA update; `weight` scales the effective rate so thin evidence
-        (e.g. pointer-only windows) moves the score more slowly. Asymmetric:
-        confidence falls at full rate but rises at 0.85x, so a single
-        user-like window can't vault an impostor over the threshold."""
+        (e.g. pointer-only windows) moves the score more slowly.
+
+        Dynamics tuned from live testing:
+        - STRONG genuine evidence (p >= 0.85) builds at full rate — the real
+          user shouldn't wait 15s for a short memo to authorize; weaker
+          upward evidence rises at 0.85x so borderline impostors can't vault.
+        - A single outlier window can't crater the score: a big drop applies
+          at half rate once, and at full rate only when a SECOND consecutive
+          window agrees. Impostors and bots are consistently low, so takeover
+          detection stays fast; one correction-heavy genuine window doesn't
+          throw the user into the step-up band."""
         w = min(max(weight, 0.0), 1.5)
-        if self.S is not None and p > self.S:
-            w *= 0.85
+        if self.S is not None:
+            if p > self.S and p < 0.85:
+                w *= 0.85
+            elif p < self.S - 0.3:
+                prev_agreed = (self._last_p is not None
+                               and self._last_p < self.S - 0.3)
+                if not prev_agreed:
+                    w *= 0.5
         alpha = 1.0 - math.exp(-hop_s * w / self.tau_s)
         self.S = p if self.S is None else alpha * p + (1 - alpha) * self.S
+        self._last_p = p
         return self.S
 
     def apply_idle(self, idle_s: float, now: float) -> float | None:
