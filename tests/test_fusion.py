@@ -32,11 +32,14 @@ def test_bot_floor_on_robotic_cov():
     assert robotic_keys(holds, dds)
     human_holds = list(np.random.default_rng(1).normal(0.09, 0.025, 20))
     assert not robotic_keys(human_holds, dds)
-    assert fuse(0.95, 20, 0.95, 200, bot=True) == BOT_FLOOR_P
+    assert fuse(0.95, 20, 0.95, 200, bot=True)[0] == BOT_FLOOR_P
 
 
 def test_fuse_weights():
-    assert fuse(None, 0, None, 0, bot=False) is None
-    assert fuse(0.8, 16, None, 0, bot=False) == 0.8
-    # 8 keys (w=0.5) at 0.8 + 100 samples (w=1.0) at 0.2 -> 0.4
-    assert abs(fuse(0.8, 8, 0.2, 100, bot=False) - 0.4) < 1e-9
+    assert fuse(None, 0, None, 0, bot=False) == (None, 0.0)
+    assert fuse(0.8, 16, None, 0, bot=False)[0] == 0.8
+    # 8 keys (w=0.5) at 0.8 + 100 samples (w=min(0.5, 0.5)=0.5) at 0.2 -> 0.5
+    p, w = fuse(0.8, 8, 0.2, 100, bot=False)
+    assert abs(p - 0.5) < 1e-9 and abs(w - 1.0) < 1e-9
+    # pointer weight is capped at 0.5 even with many samples
+    assert fuse(None, 0, 0.9, 10000, bot=False)[1] == 0.5

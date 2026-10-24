@@ -34,20 +34,32 @@ def simulate_takeover(bundle, first: list[WindowRecord], second: list[WindowReco
     """Concatenate two window streams; return seconds after switch to cross
     below threshold, plus the full score trace."""
     rs = RollingScore()
+
+    def p_w(rec):
+        """Mirror the live scorer: sparse-key shrink; pointer sustains only."""
+        if bundle.is_bot_window(rec):
+            return 0.02, 1.5
+        if rec.modality == "keys":
+            n = len(rec.seq) if rec.seq else 16
+            p = 0.5 + (bundle.p_keys(rec) - 0.5) * min(1.0, n / 20)
+            return p, min(1.0, n / 16)
+        if rs.S is None:
+            return None, 0.0  # score initializes from typing only
+        return min(bundle.p_pointer(rec), rs.S), 0.5
+
     trace = []
     for rec in first:
-        p = bundle.p_keys(rec) if rec.modality == "keys" else bundle.p_pointer(rec)
-        if bundle.is_bot_window(rec):
-            p = 0.02
-        trace.append(rs.update(p, HOP_S))
+        p, w = p_w(rec)
+        if p is not None:
+            trace.append(rs.update(p, HOP_S, w))
     latency = None
     t = 0.0
     for rec in second:
-        p = bundle.p_keys(rec) if rec.modality == "keys" else bundle.p_pointer(rec)
-        if bundle.is_bot_window(rec):
-            p = 0.02
-        s = rs.update(p, HOP_S)
+        p, w = p_w(rec)
         t += HOP_S
+        if p is None:
+            continue
+        s = rs.update(p, HOP_S, w)
         trace.append(s)
         if latency is None and s < threshold:
             latency = t
@@ -123,7 +135,8 @@ def main() -> None:
     if len(gen_p):
         frr = float(np.mean(gen_p < t_high))
         if frr > MAX_FRR:
-            t_high = float(np.quantile(gen_p, MAX_FRR))
+            # relax toward the genuine 5th percentile, but never below 0.60
+            t_high = max(float(np.quantile(gen_p, MAX_FRR)), 0.60)
     policy = {"t_high": round(t_high, 3), "t_low": T_LOW}
     (models_dir() / "policy.json").write_text(json.dumps(policy, indent=2))
 

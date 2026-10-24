@@ -34,6 +34,20 @@ class Scorer:
         self.n_pointer_last = 0
         self._stop = threading.Event()
         self._last_hop = 0.0
+        # CGEventGetTimestamp and time.monotonic() should share the since-boot
+        # base on macOS, but we don't trust that: estimate the offset from
+        # event arrival so windowing works under any clock base.
+        self._clock_offset: float | None = None
+
+    def _event_now(self) -> float:
+        """Current time expressed in the event-timestamp clock."""
+        mono = time.monotonic()
+        newest = self.buffer.last_input_t
+        if newest is not None:
+            off = mono - newest  # >= true offset (plus up to ~0.25s latency)
+            if self._clock_offset is None or off < self._clock_offset:
+                self._clock_offset = off
+        return mono - (self._clock_offset or 0.0)
 
     # ---- public state ----
 
@@ -45,7 +59,7 @@ class Scorer:
         t = self.buffer.last_input_t
         if t is None:
             return None
-        return max(time.monotonic() - t, 0.0)
+        return max(self._event_now() - t, 0.0)
 
     def status(self) -> dict:
         return {
@@ -77,6 +91,8 @@ class Scorer:
                 seq=[seq_item_to_row(i) for i in build_seq(strokes)[-32:]],
             )
             p_k = self.bundle.p_keys(rec)
+            # sparse windows have noisy stats: shrink toward neutral
+            p_k = 0.5 + (p_k - 0.5) * min(1.0, n_keys / 20)
             bot = bot or self.bundle.is_bot_window(rec)
 
         p_m = None
@@ -97,19 +113,27 @@ class Scorer:
         self.n_keys_last = n_keys
         self.n_pointer_last = n_ptr
         self.bot_flag = bot
-        return fuse(p_k, n_keys, p_m, n_ptr, bot)
+        p, w = fuse(p_k, n_keys, p_m, n_ptr, bot)
+        self.last_weight = w
+        return p
 
     def tick(self) -> None:
-        now = time.monotonic()
+        mono = time.monotonic()
         idle = self.last_input_age_s()
         if idle is not None:
-            self.rolling.apply_idle(idle, now)
-        if now - self._last_hop >= HOP_S:
-            self._last_hop = now
+            self.rolling.apply_idle(idle, mono)
+        if mono - self._last_hop >= HOP_S:
+            self._last_hop = mono
             keys, pointer = self.sub.snapshot()
-            p = self.score_window(keys, pointer, now)
+            p = self.score_window(keys, pointer, self._event_now())
             if p is not None:
-                self.rolling.update(p, HOP_S)
+                # pointer alone sustains the score; only typing can raise it
+                # (and only typing can initialize it)
+                if self.n_keys_last == 0 and not self.bot_flag:
+                    if self.rolling.S is None:
+                        return
+                    p = min(p, self.rolling.S)
+                self.rolling.update(p, HOP_S, getattr(self, "last_weight", 1.0))
 
     def run(self) -> None:
         while not self._stop.is_set():

@@ -92,9 +92,16 @@ class ModelBundle:
     # --- calibrated probabilities ---
 
     def p_keys(self, rec: WindowRecord) -> float:
-        if self.active_keys_model == "l1" and self.encoder is not None and rec.seq:
-            return self.calib["keys_l1"](self.keys_raw_l1(rec))
-        return self.calib["keys_l0"](self.keys_raw_l0(rec))
+        """Conservative combination: when L1 is active, an impostor must fool
+        BOTH the distribution baseline (L0) and the sequence encoder (L1).
+        The encoder alone can overfit tiny enrollment sets; L0 alone misses
+        sequence structure. min() keeps the demo honest on fresh input."""
+        p0 = self.calib["keys_l0"](self.keys_raw_l0(rec))
+        if (self.active_keys_model == "l1" and self.encoder is not None
+                and rec.seq and "keys_l1" in self.calib):
+            p1 = self.calib["keys_l1"](self.keys_raw_l1(rec))
+            return min(p0, p1)
+        return p0
 
     def p_pointer(self, rec: WindowRecord) -> float:
         return self.calib["pointer"](self.pointer_raw(rec))

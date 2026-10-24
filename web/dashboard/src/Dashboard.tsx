@@ -58,6 +58,7 @@ function useAnimatedNumber(target: number | null): number | null {
   const raf = useRef(0);
   useEffect(() => {
     if (target === null) { setDisplay(null); return; }
+    setDisplay((d) => (d === null ? target : d)); // first signal: jump, no tween
     cancelAnimationFrame(raf.current);
     const step = () => {
       setDisplay((d) => {

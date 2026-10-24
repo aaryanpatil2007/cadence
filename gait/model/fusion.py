@@ -49,16 +49,26 @@ def robotic_pointer(straightness_mean: float, submovement_mean: float,
             and submovement_mean <= 1.0)
 
 
+POINTER_W_CAP = 0.5  # pointer is a liveness channel, not the primary discriminator
+
+
 def fuse(p_k: float | None, n_keys: int, p_m: float | None,
-         n_pointer: int, bot: bool) -> float | None:
-    """Weighted fusion of calibrated modality probabilities (§6.4)."""
+         n_pointer: int, bot: bool) -> tuple[float | None, float]:
+    """Weighted fusion of calibrated modality probabilities (§6.4).
+
+    Returns (fused probability, evidence weight in [0, 1.5]). Pointer weight
+    is capped at 0.5: typing dynamics separate people far more reliably than
+    cursor stats, so keystrokes keep authority whenever both are present, and
+    pointer-only windows update the rolling score at reduced rate.
+    """
     if bot:
-        return BOT_FLOOR_P
+        return BOT_FLOOR_P, 1.5
     w_k = min(1.0, n_keys / 16) if p_k is not None else 0.0
-    w_m = min(1.0, n_pointer / 100) if p_m is not None else 0.0
+    w_m = min(POINTER_W_CAP, n_pointer / 200) if p_m is not None else 0.0
     if w_k + w_m == 0:
-        return None
-    return ((w_k * (p_k or 0.0)) + (w_m * (p_m or 0.0))) / (w_k + w_m)
+        return None, 0.0
+    p = ((w_k * (p_k or 0.0)) + (w_m * (p_m or 0.0))) / (w_k + w_m)
+    return p, w_k + w_m
 
 
 class RollingScore:
@@ -67,8 +77,15 @@ class RollingScore:
         self.S: float | None = None
         self._last_decay_t: float | None = None
 
-    def update(self, p: float, hop_s: float) -> float:
-        alpha = 1.0 - math.exp(-hop_s / self.tau_s)
+    def update(self, p: float, hop_s: float, weight: float = 1.0) -> float:
+        """EWMA update; `weight` scales the effective rate so thin evidence
+        (e.g. pointer-only windows) moves the score more slowly. Asymmetric:
+        confidence falls at full rate but rises at 0.7x, so a single
+        user-like window can't vault an impostor over the threshold."""
+        w = min(max(weight, 0.0), 1.5)
+        if self.S is not None and p > self.S:
+            w *= 0.7
+        alpha = 1.0 - math.exp(-hop_s * w / self.tau_s)
         self.S = p if self.S is None else alpha * p + (1 - alpha) * self.S
         return self.S
 
