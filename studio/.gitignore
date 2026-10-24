@@ -1,0 +1,9 @@
+node_modules/
+frames/
+clips/
+caps/
+out/novo.mp4
+out/capped.mp4
+out/score*.wav
+out/*.png
+package-lock.json

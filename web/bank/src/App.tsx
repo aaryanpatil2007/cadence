@@ -101,6 +101,8 @@ export default function App() {
       if (res.identity) setIdentity(res.identity);
       if (d === "stepup" && (res.recovery ?? []).includes("challenge")) {
         const sj = await (await fetch(`${DAEMON}/stepup/start`, { method: "POST" })).json(); setChallenge(sj.challenge);
+      } else if (d === "stepup" && res.kyc_required) {
+        setKycOpen(true);   // high-value: surface the CRS bureau step directly
       }
       refresh();
     } finally { setBusy(false); }
