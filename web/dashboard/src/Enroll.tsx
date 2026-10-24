@@ -139,7 +139,7 @@ function Intro(p: {
         not your words.
       </p>
       <div className="flex items-center justify-center gap-3 mt-10">
-        {["user", "impostor_1", "impostor_2"].map((id) => (
+        {["user", "impostor_1", "impostor_2", "impostor_3"].map((id) => (
           <button
             key={id}
             onClick={() => p.setProfile(id)}
