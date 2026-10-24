@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600&display=swap');
+  html,body{margin:0;height:100%;background:#08080a;overflow:hidden}
+  .wrap{height:100vh;display:flex;align-items:center;justify-content:center;gap:18px}
+  .mark{width:0;height:0;opacity:0}
+  .logo{display:flex;align-items:center;gap:16px;opacity:0;transform:translateY(8px)}
+  .badge{width:58px;height:58px;border-radius:17px;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(180deg,#5e9eff,#3b7de0);box-shadow:0 10px 36px rgba(59,125,224,.4)}
+  .badge svg{width:30px;height:30px}
+  .word{font-family:'Instrument Sans',system-ui,sans-serif;font-weight:600;font-size:52px;color:#f5f5f7;
+    letter-spacing:-.025em}
+  .glow{position:fixed;inset:0;background:radial-gradient(600px 400px at 50% 48%, rgba(94,158,255,.14), transparent 60%);opacity:0}
+</style></head>
+<body>
+  <div class="glow" id="glow"></div>
+  <div class="wrap">
+    <div class="logo" id="logo">
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="word">Cadence</div>
+    </div>
+  </div>
+<script>
+  window.__play = () => {
+    const logo = document.getElementById('logo'), glow = document.getElementById('glow');
+    const t0 = performance.now();
+    function ease(t){return 1-Math.pow(1-t,3);}
+    (function loop(now){
+      const t = Math.min((now-t0)/900, 1), e = ease(t);
+      logo.style.opacity = String(e);
+      logo.style.transform = 'translateY(' + (8*(1-e)) + 'px)';
+      glow.style.opacity = String(e*0.9);
+      if(t<1) requestAnimationFrame(loop);
+    })(t0);
+  };
+</script>
+</body>
+</html>

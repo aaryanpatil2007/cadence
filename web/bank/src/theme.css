@@ -1,154 +1,95 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
+/* ---- Ada: daylight gallery · off-white canvas, flat cards, jewel punctuation ---- */
 :root {
-  --bg: #08080a;
-  --bg-2: #0d0d10;
-  --surface: #141418;
-  --surface-2: #1b1b20;
-  --elevated: #222228;
-  --text: #f5f5f7;
-  --text-2: #a8a8b3;
-  --muted: #6e6e78;
-  --green: #32d74b;
-  --amber: #ffd426;
-  --red: #ff453a;
-  --accent: #5e9eff;
-  --accent-deep: #3b7de0;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-2: rgba(255, 255, 255, 0.12);
+  --ink: #0a0b0c;
+  --bone: #f9f9f9;        /* canvas */
+  --paper: #ffffff;       /* cards */
+  --ash: #d8d8d8;
+  --forest: #00543d;      /* allow / trust / authority */
+  --periwinkle: #abcbf9;  /* primary action fill */
+  --candy: #ffbbfc;
+  --butter: #fce88b;
+  --amber-ink: #8a6a00;   /* step-up (readable) */
+  --crimson: #c0362c;     /* deny / fraud (punctuation only) */
+  --line: rgba(10, 11, 12, 0.11);   /* hairline border */
+  --line-2: rgba(10, 11, 12, 0.18);
+  --muted: rgba(10, 11, 12, 0.56);
+  --muted-2: rgba(10, 11, 12, 0.4);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html,
+* { box-sizing: border-box; }
+html, body { margin: 0; }
 body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, "SF Pro Text", "SF Pro Display", Inter, system-ui,
-    sans-serif;
+  background: var(--bone);
+  color: var(--ink);
+  font-family: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-size: 16px;
   line-height: 1.5;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.01em;
 }
+#root { min-height: 100vh; }
 
-#root {
-  min-height: 100vh;
-}
-
-.display {
-  font-family: "SF Pro Display", -apple-system, system-ui, sans-serif;
-  letter-spacing: -0.025em;
-  font-weight: 600;
-}
-
-.mono {
-  font-family: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
-  font-variant-numeric: tabular-nums;
-}
+/* hierarchy by SIZE, not weight — single-weight discipline */
+.display { font-weight: 500; letter-spacing: -0.015em; }
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.tnum { font-variant-numeric: tabular-nums; }
 
 .label {
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
-  font-weight: 590;
+  font-weight: 500;
 }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-}
-
-.glass {
-  background: rgba(27, 27, 32, 0.72);
-  backdrop-filter: blur(28px) saturate(1.4);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
-  border: 1px solid var(--border-2);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 
 .field {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-.field:focus-within {
-  border-color: var(--accent);
-  background: var(--surface);
-}
-.field input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--text);
-  width: 100%;
-}
-.field input::placeholder {
-  color: var(--muted);
-}
-
-.btn-primary {
-  background: linear-gradient(180deg, var(--accent), var(--accent-deep));
-  color: #fff;
-  border: none;
-  border-radius: 14px;
-  font-weight: 590;
-  cursor: pointer;
-  transition: filter 0.15s ease, transform 0.1s ease;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset,
-    0 8px 24px rgba(59, 125, 224, 0.25);
-}
-.btn-primary:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-.btn-primary:active:not(:disabled) {
-  transform: scale(0.985);
-}
-.btn-primary:disabled {
-  opacity: 0.4;
-  cursor: default;
-  box-shadow: none;
-}
-
-.btn-ghost {
-  background: var(--elevated);
-  color: var(--text);
-  border: 1px solid var(--border-2);
-  border-radius: 12px;
-  font-weight: 560;
-  cursor: pointer;
-  transition: filter 0.15s ease, transform 0.1s ease;
-}
-.btn-ghost:hover:not(:disabled) {
-  filter: brightness(1.2);
-}
-.btn-ghost:active:not(:disabled) {
-  transform: scale(0.985);
-}
-
-::selection {
-  background: rgba(94, 158, 255, 0.35);
-}
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--paper);
+  border: 1px solid var(--line);
   border-radius: 6px;
-  border: 3px solid var(--bg);
+  transition: border-color 0.14s ease;
 }
+.field:focus-within { border-color: var(--ink); }
+.field input, .field textarea {
+  background: transparent; border: none; outline: none; color: var(--ink);
+  width: 100%; font-family: inherit;
+}
+.field input::placeholder, .field textarea::placeholder { color: var(--muted-2); }
 
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
+/* Ada buttons: dark pill (authority) + periwinkle fill (action) */
+.pill {
+  background: var(--ink); color: var(--paper);
+  border: none; border-radius: 9999px; cursor: pointer; font-weight: 500;
+  transition: opacity 0.14s ease, transform 0.1s ease; font-family: inherit;
 }
+.pill:hover:not(:disabled) { opacity: 0.88; }
+.pill:active:not(:disabled) { transform: scale(0.985); }
+.pill:disabled { opacity: 0.32; cursor: default; }
+
+.pill-accent {
+  background: var(--periwinkle); color: var(--ink);
+  border: none; border-radius: 9999px; cursor: pointer; font-weight: 500;
+  transition: filter 0.14s ease, transform 0.1s ease; font-family: inherit;
+}
+.pill-accent:hover:not(:disabled) { filter: brightness(1.04); }
+.pill-accent:active:not(:disabled) { transform: scale(0.985); }
+.pill-accent:disabled { opacity: 0.4; cursor: default; }
+
+.pill-ghost {
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--line-2); border-radius: 9999px; cursor: pointer;
+  font-weight: 500; transition: background 0.14s ease; font-family: inherit;
+}
+.pill-ghost:hover:not(:disabled) { background: rgba(10, 11, 12, 0.04); }
+
+::selection { background: var(--periwinkle); }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: rgba(10, 11, 12, 0.14); border-radius: 6px; border: 3px solid var(--bone); }
