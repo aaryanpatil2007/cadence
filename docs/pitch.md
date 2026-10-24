@@ -9,6 +9,18 @@ Everything downstream of login trusts a bearer token. Cookies get stolen,
 sessions get hijacked, unlocked laptops get borrowed, bots drive real UIs.
 MFA happens once; attacks happen later.
 
+## The technical core
+
+The keystroke encoder is **pretrained on the Aalto 136M-keystroke dataset**
+(TypeNet-style supervised contrastive learning over thousands of real typists,
+on this laptop's GPU) so it learns what distinguishes typists *in general*;
+your 5-minute enrollment then just locates you in that space via top-k
+similarity to your enrollment embeddings. Validation EER on typists the model
+never saw: see `data/models/encoder_pretrained_meta.json`. The pointer model
+draws population negatives from the Balabit mouse-dynamics corpus. On-device
+training picks the best of {scratch, pretrained-frozen, fine-tuned} by
+held-out AUC — honest model selection, no cherry-picking.
+
 ## What we built (24 h)
 - A macOS daemon that learns one person's typing + pointer dynamics from a
   5-minute enrollment and keeps a rolling confidence score, updated every
