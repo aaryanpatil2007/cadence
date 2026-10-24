@@ -58,10 +58,10 @@ async function captureScene(context, name, url, sceneFn) {
   mkdirSync(dir, { recursive: true });
   const page = await context.newPage();
   await page.addInitScript(INIT);
-  await page.goto(url, { waitUntil: "networkidle" });
+  await page.goto(url, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => document.fonts && document.fonts.ready);
   await page.evaluate(() => window.__cad.cursor());
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(650);   // let the SPA mount + data load
 
   const client = await context.newCDPSession(page);
   const frames = [];
@@ -118,6 +118,11 @@ function makeApi(page) {
       await page.waitForTimeout(90);
       await page.mouse.click(x, y);
     },
+    async clickIf(sel, ms = 650) {   // click only if visible (instant check)
+      const vis = await page.locator(sel).first().isVisible().catch(() => false);
+      if (vis) { await this.click(sel, ms); return true; }
+      return false;
+    },
     async type(sel, text, cps = 14) {
       await page.locator(sel).first().click();
       await page.keyboard.type(text, { delay: 1000 / cps });
@@ -129,7 +134,7 @@ function makeApi(page) {
       }, [sel, top, ms]);
     },
     hash: (h) => page.evaluate((h) => { location.hash = h; }, h),
-    goto: (u) => page.goto(u, { waitUntil: "networkidle" }),
+    goto: (u) => page.goto(u, { waitUntil: "domcontentloaded" }),
     evaluate: (...a) => page.evaluate(...a),
   };
 }
