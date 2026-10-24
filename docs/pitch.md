@@ -49,9 +49,12 @@ held-out AUC — honest model selection, no cherry-picking.
 Root malware on the host can lie to the verifier — identical trust boundary to
 Touch ID on a compromised machine. Trained human mimicry is out of scope.
 
-## Numbers for the slide (from data/models/eval.md after enrollment)
-- Takeover detection latency: __ s (target <10)
-- User false-reject at T_HIGH: __ % (target ≤5)
-- Bot score: 0.02 (hard floor)
-- Model: ~55k params · trained in __ s on-device
-- Attestation: ES256, 10 s TTL, single-use nonce, Secure Enclave key
+## Numbers for the slide (real team data, data/models/eval.md)
+- Pretraining: 3,000 typists / 79k sequences from the Aalto 136M corpus,
+  **5.6% EER on 60 typists the model never saw**, trained on a MacBook GPU
+- On-device personalization: 55,360 params, fine-tuned in ~3 s
+- Keys AUC on held-out windows: **1.00** (user vs both teammates)
+- User false-reject while typing at T_HIGH=0.70: **0%**; mean score 0.96
+- Takeover detection: **2.5 s** (dissimilar typist), **5 s** (similar typist)
+- Automation: score floors to **0.02 within 5 s**
+- Attestation: ES256, 10 s TTL, single-use nonce, **Secure Enclave key**
