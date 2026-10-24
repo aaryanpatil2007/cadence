@@ -44,6 +44,12 @@ demo:
 test:
 	$(PY) -m pytest tests/ -x -q
 
+nessie-smoke:
+	$(PY) -m bank.nessie
+
+pretrain:
+	$(PY) -m gait.model.pretrain
+
 web:
 	cd web/dashboard && npm install && npm run build
 	cd web/bank && npm install && npm run build

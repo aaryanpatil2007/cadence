@@ -87,8 +87,13 @@ def create_app(db_path: Path | None = None, verifier_url: str = VERIFIER_URL) ->
     def accounts(request: Request):
         if not _session_ok(request):
             raise HTTPException(401, "not logged in")
+        if nessie is not None:
+            live = nessie.balances()
+            if live is not None:
+                return {"accounts": live, "backend": "nessie"}
         rows = db.execute("SELECT name, balance FROM accounts").fetchall()
-        return {"accounts": [{"name": n, "balance": b} for n, b in rows]}
+        return {"accounts": [{"name": n, "balance": b} for n, b in rows],
+                "backend": "mock"}
 
     @app.post("/transfer")
     def transfer(body: TransferBody, request: Request):

@@ -17,3 +17,8 @@
 - T_HIGH relaxation (FRR quantile) is floored at 0.60.
 - CMU test criterion: mean EER over 15 subjects (see earlier entry).
 - Scorer estimates the CGEventTimestamp↔monotonic clock offset from event arrival instead of assuming a shared base.
+- Real-data fixes (after first human enrollments): interleaved per-modality train/held split (chronological split evaluated on unseen activity types); keys combiner chosen by held-out AUC (L0 is near-chance on real humans — min() capped genuine at noise); encoder epochs 300 for small sets; genuine calibration fit trims its lowest 10%; thresholds + FRR measured on the typing-active rolling score.
+- Aalto 136M turned out to be directly downloadable (no request form) — pretraining enabled: TypeNet-style SupCon on 3k users, checkpoint by verification EER on 60 unseen users. train.py picks scratch vs pretrained-frozen vs fine-tuned by held-out AUC.
+- Balabit mouse dataset added as optional population negatives for the pointer GMM; kept only if it improves held-out AUC.
+- Nessie boot is idempotent (ids persisted in data/nessie.json); bank /accounts serves live Nessie balances when active; `make nessie-smoke` validates a key end-to-end.
+- New product surfaces: `--guard` (locks the Mac after 6s of sub-threshold input; Ctrl-Cmd-Q via System Events) and `scripts/gait-exec` (attestation-gated command runner).

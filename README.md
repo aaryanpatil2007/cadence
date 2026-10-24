@@ -36,6 +36,27 @@ flowchart LR
     VER --> AUDIT[(audit log)]
 ```
 
+## Pretrained on 136M keystrokes
+
+The encoder is pretrained TypeNet-style (SupCon) on the
+[Aalto 136M keystrokes dataset](https://userinterfaces.aalto.fi/136Mkeystrokes/)
+— thousands of real typists — so it learns *what distinguishes typists in
+general* before ever seeing the enrolled user. Enrollment then just locates one
+person in that space. `make pretrain` (checkpoints by verification EER on
+held-out users it never trained on); `make train` automatically picks the best
+of {scratch, pretrained-frozen, pretrained-finetuned} on *your* data. The
+pointer model can pull population negatives from the
+[Balabit mouse dynamics dataset](https://github.com/balabit/Mouse-Dynamics-Challenge).
+
+## Beyond the bank: gait as an authorization rail
+
+- `scripts/gait-exec -- <command>` — any shell command gated by a fresh
+  attestation (`gait-exec --action deploy -- ./deploy.sh`)
+- `python -m gait.daemon.app --guard` — active response: locks the Mac after
+  6 s of confident "this is not the enrolled user" input
+- The same `/verify` endpoint can front any API: payments, deploys, agent
+  actions — anything that should require a *human you* at the keyboard.
+
 ## Quick start
 
 ```bash

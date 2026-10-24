@@ -182,6 +182,8 @@ def main() -> None:
                     help="append genuine 'user' windows during normal use")
     ap.add_argument("--enroll-open", action="store_true",
                     help="open the enrollment UI in the browser")
+    ap.add_argument("--guard", action="store_true",
+                    help="lock the screen when someone else is at the keyboard")
     ap.add_argument("--port", type=int, default=7777)
     args = ap.parse_args()
 
@@ -228,6 +230,34 @@ def main() -> None:
                             f.write(r.to_json() + "\n")
         threading.Thread(target=collector, daemon=True).start()
         print("[daemon] --collect: appending genuine windows every 60s")
+
+    if args.guard and bundle is not None:
+        import subprocess
+        from gait.model.runtime import ModelBundle as _MB
+
+        def guard():
+            t_low = (bundle.policy or {}).get("t_low", 0.40)
+            below_since = None
+            cooldown_until = 0.0
+            while True:
+                time.sleep(1.0)
+                now = time.monotonic()
+                s = scorer.score
+                idle = scorer.last_input_age_s()
+                active = idle is not None and idle < 5.0
+                if s is not None and s < t_low and active and now > cooldown_until:
+                    below_since = below_since or now
+                    if now - below_since >= 6.0:
+                        print(f"[guard] score {s:.2f} < {t_low} for 6s — locking screen")
+                        subprocess.run(["osascript", "-e",
+                                        'tell application "System Events" to '
+                                        'key code 12 using {control down, command down}'])
+                        cooldown_until = now + 45.0
+                        below_since = None
+                else:
+                    below_since = None
+        threading.Thread(target=guard, daemon=True).start()
+        print("[daemon] --guard: screen locks after 6s of non-user input")
 
     app = create_app(scorer, pump, enroll_mgr, stepup_mgr)
 

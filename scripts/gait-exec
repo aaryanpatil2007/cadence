@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""gait-exec: run a command only if a fresh behavioral attestation passes.
+
+    gait-exec [--action NAME] -- <command ...>
+
+Flow: verifier nonce -> daemon attestation (Secure Enclave signed) ->
+verifier decision -> allow: exec; stepup/deny: refuse with reason.
+Demonstrates gait as an authorization layer for ANY action, not just the bank.
+"""
+import argparse
+import os
+import subprocess
+import sys
+
+import httpx
+
+DAEMON = os.environ.get("GAIT_DAEMON_URL", "http://127.0.0.1:7777")
+VERIFIER = os.environ.get("GAIT_VERIFIER_URL", "http://127.0.0.1:7800")
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--action", default=None)
+    ap.add_argument("cmd", nargs=argparse.REMAINDER)
+    args = ap.parse_args()
+    cmd = args.cmd[1:] if args.cmd and args.cmd[0] == "--" else args.cmd
+    if not cmd:
+        print("usage: gait-exec [--action NAME] -- <command ...>", file=sys.stderr)
+        return 2
+    action = args.action or f"exec:{cmd[0]}"
+
+    try:
+        nonce = httpx.get(f"{VERIFIER}/nonce", timeout=5).json()["nonce"]
+        att = httpx.get(f"{DAEMON}/attest", params={"nonce": nonce}, timeout=5)
+        if att.status_code != 200:
+            print(f"gait: refused — {att.json().get('detail', 'no attestation')}",
+                  file=sys.stderr)
+            return 1
+        jws = att.json()["jws"]
+        v = httpx.post(f"{VERIFIER}/verify",
+                       json={"jws": jws, "action": action}, timeout=5).json()
+    except Exception as e:
+        print(f"gait: verification unavailable ({e})", file=sys.stderr)
+        return 1
+
+    if v.get("decision") == "allow":
+        print(f"gait: allow (score {v.get('score')}) — running: {' '.join(cmd)}",
+              file=sys.stderr)
+        return subprocess.call(cmd)
+    print(f"gait: {v.get('decision', 'deny')} — {v.get('reason', '')}",
+          file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
