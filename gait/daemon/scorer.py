@@ -11,7 +11,11 @@ from gait.features.keystroke import pair_keystrokes, build_seq, window_stats
 from gait.features.pointer import pointer_window_stats
 from gait.features.schema import (
     WindowRecord, seq_item_to_row, MIN_KEYS, WINDOW_S, HOP_S,
+    KEY_STAT_NAMES, POINTER_STAT_NAMES,
 )
+
+_K = {n: i for i, n in enumerate(KEY_STAT_NAMES)}
+_P = {n: i for i, n in enumerate(POINTER_STAT_NAMES)}
 from gait.model.fusion import RollingScore, fuse, BOT_FLOOR_P
 from gait.model.runtime import ModelBundle
 from .pump import EventPump
@@ -29,6 +33,7 @@ class Scorer:
         self.sub = pump.subscribe(horizon_s=WINDOW_S + 2.0)
         self.p_keys_last: float | None = None
         self.p_pointer_last: float | None = None
+        self.signals: dict = {}
         self.bot_flag = False
         self.n_keys_last = 0
         self.n_pointer_last = 0
@@ -68,6 +73,7 @@ class Scorer:
             "bot_flag": self.bot_flag,
             "last_input_age_s": self.last_input_age_s(),
             "ready": self.bundle is not None and self.bundle.ready(),
+            "signals": self.signals,
         }
 
     # ---- scoring ----
@@ -94,6 +100,13 @@ class Scorer:
             # sparse windows have noisy stats: shrink toward neutral
             p_k = 0.5 + (p_k - 0.5) * min(1.0, n_keys / 12)
             bot = bot or self.bundle.is_bot_window(rec)
+            f = rec.feats
+            self.signals.update({
+                "hold_ms": round(f[_K["hold_mean"]] * 1000, 1),
+                "gap_ms": round(f[_K["dd_mean"]] * 1000, 1),
+                "rhythm_var": round(f[_K["hold_std"]] / max(f[_K["hold_mean"]], 1e-6), 3),
+                "typing_rate": round(f[_K["typing_rate"]], 1),
+            })
 
         p_m = None
         ptr = [e for e in pointer_events if now - WINDOW_S <= e["t"] <= now]
@@ -107,6 +120,12 @@ class Scorer:
             )
             p_m = self.bundle.p_pointer(rec)
             bot = bot or self.bundle.is_bot_window(rec)
+            self.signals.update({
+                "mouse_speed": round(feats[_P["speed_mean"]], 0),
+                "curvature": round(feats[_P["curvature_mean"]], 3),
+                "submovements": round(feats[_P["submovement_mean"]], 1),
+                "scroll_rate": round(feats[_P["scroll_rate"]], 1),
+            })
 
         self.p_keys_last = p_k
         self.p_pointer_last = p_m
@@ -175,7 +194,8 @@ class FakeScorer(Scorer):
     def status(self) -> dict:
         return {"score": self.fixed,
                 "modalities": {"keys": self.fixed, "pointer": self.fixed},
-                "bot_flag": False, "last_input_age_s": 0.5, "ready": True}
+                "bot_flag": False, "last_input_age_s": 0.5, "ready": True,
+                "signals": {}}
 
     def start(self):
         return None

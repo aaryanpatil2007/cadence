@@ -4,6 +4,7 @@
 //   gait-sign sign <base64url payload> -> print base64url raw r||s signature
 import Foundation
 import CryptoKit
+import LocalAuthentication
 
 func gaitDir() -> URL {
     let home = FileManager.default.homeDirectoryForCurrentUser
@@ -40,7 +41,25 @@ func fail(_ msg: String) -> Never {
 }
 
 let args = CommandLine.arguments
-guard args.count >= 2 else { fail("usage: gait-sign gen|pub|sign <b64url>") }
+guard args.count >= 2 else { fail("usage: gait-sign gen|pub|sign <b64url>|bio") }
+
+// "bio" needs no Secure Enclave key — handle before the SE gate
+if args[1] == "bio" {
+    let ctx = LAContext()
+    var err: NSError?
+    let policy: LAPolicy = ctx.canEvaluatePolicy(
+        .deviceOwnerAuthenticationWithBiometrics, error: &err)
+        ? .deviceOwnerAuthenticationWithBiometrics
+        : .deviceOwnerAuthentication
+    let sem = DispatchSemaphore(value: 0)
+    var ok = false
+    ctx.evaluatePolicy(policy, localizedReason: "approve this action in Cadence") {
+        success, _ in ok = success; sem.signal()
+    }
+    sem.wait()
+    print(ok ? "OK" : "FAIL")
+    exit(ok ? 0 : 1)
+}
 
 guard SecureEnclave.isAvailable else { fail("secure enclave unavailable") }
 

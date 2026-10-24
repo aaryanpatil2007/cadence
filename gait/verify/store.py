@@ -32,6 +32,8 @@ class Store:
             ofac_clear INTEGER, mode TEXT, ts REAL);
         CREATE TABLE IF NOT EXISTS kyc_exceptions(
             device_id TEXT PRIMARY KEY, expires_at REAL);
+        CREATE TABLE IF NOT EXISTS challenge_attempts(
+            device_id TEXT PRIMARY KEY, ts REAL);
         """)
         self.db.commit()
 
@@ -113,6 +115,18 @@ class Store:
                         (device_id,))
         self.db.commit()
         return True
+
+    def record_challenge(self, device_id: str) -> None:
+        self.db.execute(
+            "INSERT OR REPLACE INTO challenge_attempts VALUES(?,?)",
+            (device_id, time.time()))
+        self.db.commit()
+
+    def recent_challenge(self, device_id: str, within_s: float = 240) -> bool:
+        r = self.db.execute(
+            "SELECT ts FROM challenge_attempts WHERE device_id=?",
+            (device_id,)).fetchone()
+        return bool(r and time.time() - r[0] < within_s)
 
     def audit_tail(self, limit: int = 50) -> list[dict]:
         rows = self.db.execute(

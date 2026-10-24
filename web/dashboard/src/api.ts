@@ -9,6 +9,7 @@ export type ScoreEvent = {
   bot_flag: boolean;
   last_input_age_s: number | null;
   ready: boolean;
+  signals?: Record<string, number>;
 };
 
 export type Status = {

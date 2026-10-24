@@ -125,19 +125,50 @@ def create_app(store: Store | None = None) -> FastAPI:
             return deny("attestation from the future", device_id, score)
 
         amount = parse_amount(body.action)
-        decision, extra = decide(float(score), amount=amount)
+        biometric = bool(payload.get("biometric"))
+        challenge_passed = db.recent_challenge(device_id)
+        decision, extra = decide(float(score), amount=amount,
+                                 challenge_passed=challenge_passed,
+                                 biometric=biometric)
         if decision == "stepup" and db.consume_kyc(device_id):
             decision, extra = decide(float(score), amount=amount,
                                      kyc_passed=True)
         reason = extra or {
             "allow": f"score {score} >= threshold",
             "stepup": f"score {score} in step-up band",
-            "deny": f"score {score} < t_low",
+            "deny": f"score {score} below floor — not the enrolled user",
         }[decision]
+
+        # deterministic recovery: the client always knows the next step
+        recovery: list[str] = []
+        if decision == "stepup":
+            if amount >= KYC_REQUIRED_ABOVE:
+                recovery = ["kyc"]
+            elif challenge_passed:
+                recovery = ["touchid", "kyc"]  # one challenge max, then escalate
+            else:
+                recovery = ["challenge", "touchid"]
+        elif decision == "deny":
+            recovery = ["touchid", "kyc"]  # a denial is a dead end for an
+            # impostor, not for the real user: hardware/bureau proof recovers
+
         db.audit(body.action, device_id, score, decision, reason)
         return {"decision": decision, "score": score, "reason": reason,
+                "recovery": recovery,
                 "kyc_required": amount >= KYC_REQUIRED_ABOVE,
+                "challenge_passed": challenge_passed,
+                "biometric": biometric,
                 "identity": db.get_identity(device_id)}
+
+    @app.post("/challenge")
+    def challenge(body: dict):
+        """The client reports a completed behavioral challenge; one per
+        action window — the next /verify drops the elevated bar instead of
+        looping the prompt."""
+        device_id = body.get("device_id", "")
+        db.record_challenge(device_id)
+        db.audit("challenge", device_id, None, "ok", "behavioral step-up completed")
+        return {"ok": True}
 
     @app.get("/audit")
     def audit(limit: int = 50):

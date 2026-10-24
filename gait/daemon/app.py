@@ -46,6 +46,7 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
         return device_id()
 
     last_attest: dict = {"payload": None}
+    touchid: dict = {"until": 0.0}
 
     @app.get("/status")
     def status():
@@ -91,6 +92,7 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
             "iat": now,
             "exp": now + ATTEST_TTL_S,
             "key_backend": s.backend,
+            "biometric": time.time() < touchid["until"],
         }
         token = jws_mod.encode(payload, s.sign_raw)
         last_attest["payload"] = payload
@@ -101,6 +103,25 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
     @app.get("/last_attest")
     def get_last_attest():
         return {"payload": last_attest["payload"]}
+
+    @app.post("/touchid")
+    def touchid_prompt(request: Request):
+        """Hardware recovery rung: prompt Touch ID via LocalAuthentication.
+        Success arms the next 60s of attestations with biometric=true."""
+        _require_loopback(request)
+        import subprocess
+        from gait.attest.signer import SWIFT_BIN
+        if not SWIFT_BIN.exists():
+            raise HTTPException(501, "biometric CLI not built")
+        try:
+            out = subprocess.run([str(SWIFT_BIN), "bio"], capture_output=True,
+                                 text=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            raise HTTPException(408, "Touch ID timed out")
+        if out.returncode == 0:
+            touchid["until"] = time.time() + 60
+            return {"ok": True, "valid_for_s": 60}
+        return {"ok": False}
 
     @app.get("/events")
     async def events(request: Request):
@@ -117,6 +138,7 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
                     "bot_flag": st["bot_flag"],
                     "last_input_age_s": st["last_input_age_s"],
                     "ready": st["ready"],
+                    "signals": st.get("signals", {}),
                 })}
                 await asyncio.sleep(0.5)
         return EventSourceResponse(gen())

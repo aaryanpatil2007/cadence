@@ -49,6 +49,9 @@ export default function App() {
   const [kyc, setKyc] = useState<Record<string, string>>(PASS_P);
   const [kycState, setKycState] = useState<"idle" | "checking" | "failed">("idle");
   const [kycMsg, setKycMsg] = useState<string>("");
+  const [recovery, setRecovery] = useState<string[]>([]);
+  const [recoveryMsg, setRecoveryMsg] = useState<string>("");
+  const [touchState, setTouchState] = useState<"idle" | "waiting" | "failed">("idle");
 
   const refresh = useCallback(() => {
     fetch(`${BANK}/accounts`, { credentials: "include" })
@@ -124,14 +127,27 @@ export default function App() {
       setDecision(d);
       setFlash(d);
       setTimeout(() => setFlash(null), 600);
-      if (d === "stepup") {
-        if (res.kyc_required) {
-          setKycOpen(true); // high-value: bureau-grade identity rung (CRS)
-        } else {
-          const sr = await fetch(`${DAEMON}/stepup/start`, { method: "POST" });
-          const sj = await sr.json();
-          setChallenge(sj.challenge);
-        }
+
+      // deterministic recovery: the verifier tells us the next step
+      const rec: string[] = res.recovery ?? [];
+      setRecovery(rec);
+      setChallenge(null);
+      setKycOpen(false);
+      setTouchState("idle");
+      if (d === "allow") {
+        setRecoveryMsg("");
+      } else if (rec.includes("challenge")) {
+        setRecoveryMsg("Let’s make sure it’s you — type one sentence, naturally.");
+        const sr = await fetch(`${DAEMON}/stepup/start`, { method: "POST" });
+        const sj = await sr.json();
+        setChallenge(sj.challenge);
+      } else if (res.kyc_required) {
+        setRecoveryMsg("High-value transfer — behavior alone can’t authorize this amount.");
+        setKycOpen(true);
+      } else if (d === "deny") {
+        setRecoveryMsg("This doesn’t look like the account owner. The real owner can recover below.");
+      } else {
+        setRecoveryMsg("Behavior alone isn’t sure — confirm another way.");
       }
       if (res.identity) setIdentity(res.identity);
       refresh();
@@ -142,8 +158,33 @@ export default function App() {
 
   const finishStepup = async () => {
     await fetch(`${DAEMON}/stepup/finish`, { method: "POST" });
+    // report the attempt: one challenge per action window, never a loop
+    try {
+      const st = await fetch(`${DAEMON}/status`).then((r) => r.json());
+      await fetch(`${VERIFIER}/challenge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: st.device_id }),
+      });
+    } catch { /* verifier decides without it */ }
     setChallenge(null);
     await send();
+  };
+
+  const touchId = async () => {
+    setTouchState("waiting");
+    try {
+      const r = await fetch(`${DAEMON}/touchid`, { method: "POST" });
+      const j = await r.json();
+      if (j.ok) {
+        setTouchState("idle");
+        await send(); // next attestation carries biometric=true
+      } else {
+        setTouchState("failed");
+      }
+    } catch {
+      setTouchState("failed");
+    }
   };
 
   const submitKyc = async () => {
@@ -267,6 +308,39 @@ export default function App() {
           </button>
 
           <AnimatePresence>
+            {recoveryMsg && decision !== "allow" && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="mt-5"
+              >
+                <p className="text-[15px] text-[var(--label)]">{recoveryMsg}</p>
+                <div className="mt-2 flex items-center gap-3 flex-wrap">
+                  {recovery.includes("touchid") && (
+                    <button onClick={touchId} disabled={touchState === "waiting"}
+                      className="glass px-5 py-2 text-[14px] font-semibold
+                        hover:brightness-125 transition disabled:opacity-40"
+                      style={{ borderRadius: 999, color: "var(--text)" }}>
+                      {touchState === "waiting" ? "Touch the sensor…" : "Confirm with Touch ID"}
+                    </button>
+                  )}
+                  {recovery.includes("kyc") && !kycOpen && (
+                    <button onClick={() => setKycOpen(true)}
+                      className="glass px-5 py-2 text-[14px] font-semibold
+                        hover:brightness-125 transition"
+                      style={{ borderRadius: 999, color: "var(--blue)" }}>
+                      Verify identity · CRS
+                    </button>
+                  )}
+                </div>
+                {touchState === "failed" && (
+                  <div className="mt-2 text-[13px]" style={{ color: "var(--red)" }}>
+                    Touch ID didn’t confirm — the transfer stays blocked.
+                  </div>
+                )}
+              </motion.div>
+            )}
             {kycOpen && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}

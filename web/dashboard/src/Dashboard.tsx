@@ -224,6 +224,31 @@ export default function Dashboard() {
                 value={ev?.pointer ?? null}
               />
             </div>
+            <div className="mt-7">
+              <div className="label mb-3">Live signals — what the model actually reads</div>
+              <div className="grid grid-cols-4 gap-3">
+                {([
+                  ["Key hold", "hold_ms", "ms"],
+                  ["Key gap", "gap_ms", "ms"],
+                  ["Rhythm variance", "rhythm_var", ""],
+                  ["Typing rate", "typing_rate", "/s"],
+                  ["Mouse speed", "mouse_speed", "px/s"],
+                  ["Path curvature", "curvature", "rad"],
+                  ["Submovements", "submovements", ""],
+                  ["Scroll rate", "scroll_rate", "/s"],
+                ] as const).map(([name, key, unit]) => (
+                  <div key={key}
+                    className="rounded-2xl border border-[var(--border)] px-4 py-3">
+                    <div className="mono text-[17px]"
+                      style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {ev?.signals?.[key] != null ? ev.signals[key] : "—"}
+                      <span className="text-[11px] text-[var(--label)] ml-1">{unit}</span>
+                    </div>
+                    <div className="text-[11.5px] text-[var(--label)] mt-0.5">{name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
 
           {/* last attestation */}

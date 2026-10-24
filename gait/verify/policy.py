@@ -35,18 +35,31 @@ def parse_amount(action: str) -> float:
     return 0.0
 
 
-def decide(score: float, policy: dict | None = None,
-           amount: float = 0.0, kyc_passed: bool = False) -> tuple[str, str]:
-    """Returns (decision, extra-reason). kyc_passed = a one-time CRS identity
-    verification exception is being spent on this action."""
+def decide(score: float, policy: dict | None = None, amount: float = 0.0,
+           kyc_passed: bool = False, challenge_passed: bool = False,
+           biometric: bool = False) -> tuple[str, str]:
+    """Deterministic risk lifecycle. Returns (decision, reason).
+
+    - kyc_passed: a one-time CRS identity verification exception is being
+      spent on this action (strongest proof; clears any tier).
+    - challenge_passed: a behavioral step-up was completed for this action
+      window -> the elevated bar drops back to base (no challenge loops).
+    - biometric: the attestation carries a hardware Touch ID confirmation ->
+      clears everything below the KYC tier.
+    """
     pol = policy or load_policy()
-    if score < pol["t_low"]:
-        return "deny", ""
-    if amount >= KYC_REQUIRED_ABOVE and not kyc_passed:
-        return "stepup", f"amount >= ${KYC_REQUIRED_ABOVE:.0f}: CRS identity verification required"
     if kyc_passed:
         return "allow", "CRS identity verified (one-time exception)"
-    t_allow = pol["t_high"] + (ELEVATED_MARGIN if amount >= ELEVATED_ABOVE else 0)
-    if score >= t_allow:
-        return "allow", ""
+    if score < pol["t_low"] and not biometric:
+        return "deny", ""
+    if amount >= KYC_REQUIRED_ABOVE:
+        return "stepup", (f"amount >= ${KYC_REQUIRED_ABOVE:.0f}: "
+                          "CRS identity verification required")
+    if biometric:
+        return "allow", "Touch ID confirmed (hardware biometric)"
+    margin = 0.0 if challenge_passed else (
+        ELEVATED_MARGIN if amount >= ELEVATED_ABOVE else 0.0)
+    if score >= pol["t_high"] + margin:
+        return ("allow", "behavioral challenge passed" if challenge_passed
+                and margin == 0.0 and amount >= ELEVATED_ABOVE else "")
     return "stepup", ""
