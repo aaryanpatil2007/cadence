@@ -15,12 +15,48 @@ type Transfer = {
   decision: Decision; score: number | null; reason: string;
 };
 
-const STEPS = ["Nonce", "Behavior score", "Signature", "Policy", "Decision"];
+const STEPS = ["Nonce", "Behavior score", "Signature", "Risk engine", "Decision"];
+
+type Factor = { dimension: string; label: string; detail: string; severity: string };
 
 function decisionColor(d: string | null) {
   return d === "allow" ? "var(--green)"
     : d === "stepup" ? "var(--amber)"
     : d === "deny" ? "var(--red)" : "var(--label)";
+}
+
+function sevColor(s: string) {
+  return s === "ok" ? "var(--green)" : s === "warn" ? "var(--amber)" : "var(--red)";
+}
+
+// A stable per-browser device fingerprint (canvas + environment hash).
+function deviceFingerprint(): string {
+  try {
+    const c = document.createElement("canvas");
+    const ctx = c.getContext("2d");
+    if (ctx) {
+      ctx.textBaseline = "top";
+      ctx.font = "14px 'Arial'";
+      ctx.fillStyle = "#f60";
+      ctx.fillRect(0, 0, 60, 20);
+      ctx.fillStyle = "#069";
+      ctx.fillText("cadence", 2, 2);
+    }
+    const bits = [
+      c.toDataURL(), navigator.userAgent, navigator.language,
+      screen.width + "x" + screen.height + "x" + screen.colorDepth,
+      new Date().getTimezoneOffset(), navigator.hardwareConcurrency,
+      (navigator as { deviceMemory?: number }).deviceMemory ?? "",
+    ].join("|");
+    let h = 0;
+    for (let i = 0; i < bits.length; i++) {
+      h = (h << 5) - h + bits.charCodeAt(i);
+      h |= 0;
+    }
+    return "fp" + Math.abs(h).toString(36);
+  } catch {
+    return "fp-unknown";
+  }
 }
 
 export default function App() {
@@ -38,7 +74,9 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [challenge, setChallenge] = useState<string | null>(null);
   const [lastJws, setLastJws] = useState<string | null>(null);
-  const [identity, setIdentity] = useState<{ name: string; verified: boolean; mode: string } | null>(null);
+  const [identity, setIdentity] = useState<{ name: string; verified: boolean;
+    mode: string; credit_score?: number; credit_band?: string;
+    fraud_risk?: number; fraud_level?: string } | null>(null);
   const [kycOpen, setKycOpen] = useState(false);
   const PASS_P = { firstName: "MARGARET", lastName: "OKAFOR", ssn: "666701001",
     dob: "1984-03-14", street1: "1420 WILLOW CREEK DR", city: "SAN JOSE",
@@ -52,6 +90,11 @@ export default function App() {
   const [recovery, setRecovery] = useState<string[]>([]);
   const [recoveryMsg, setRecoveryMsg] = useState<string>("");
   const [touchState, setTouchState] = useState<"idle" | "waiting" | "failed">("idle");
+  const [factors, setFactors] = useState<Factor[]>([]);
+  const [trust, setTrust] = useState<number | null>(null);
+  const [memoPasted, setMemoPasted] = useState(false);
+  // simulate a risky network for the demo (datacenter IP)
+  const [simRisky, setSimRisky] = useState(false);
 
   const refresh = useCallback(() => {
     fetch(`${BANK}/accounts`, { credentials: "include" })
@@ -112,14 +155,26 @@ export default function App() {
       const tr = await fetch(`${BANK}/transfer`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: "savings", amount: parseFloat(amount) || 0, memo, jws: att.jws }),
+        body: JSON.stringify({
+          to: "savings", amount: parseFloat(amount) || 0, memo, jws: att.jws,
+          fingerprint: deviceFingerprint(),
+          client_ip: simRisky ? "52.14.88.3" : "",  // sim: datacenter egress
+          user_agent: navigator.userAgent,
+          pasted_ssn: memoPasted,
+          history: history.map((h) => ({ amount: h.amount, to: h.to, ts: h.ts })),
+        }),
       });
       const res = await tr.json();
       const badSig = (res.reason || "").includes("signature")
         || (res.reason || "").includes("unknown device");
       setStep(2, badSig ? "fail" : "ok", badSig ? res.reason : "ES256 ✓");
       await sleep(150);
-      setStep(3, "ok", `allow ≥ ${policy.t_high} · deny < ${policy.t_low}`);
+      setFactors(res.factors ?? []);
+      setTrust(res.trust ?? null);
+      setStep(3, (res.factors ?? []).some((f: Factor) => f.severity === "bad")
+        ? "fail" : "ok",
+        res.trust != null ? `trust ${(res.trust * 100).toFixed(0)}% · ${
+          (res.factors ?? []).length} signals` : "");
       await sleep(150);
 
       const d = (res.decision as Decision) ?? "deny";
@@ -263,7 +318,9 @@ export default function App() {
             <span className="glass px-3 py-1 text-[12px] tracking-wide"
               style={{ borderRadius: 999, color: "var(--blue)",
                        borderColor: "var(--blue)" }}>
-              Identity anchored · {identity.name} · CRS
+              {identity.name} · CRS
+              {identity.credit_score ? ` · FICO ${identity.credit_score}` : ""}
+              {identity.credit_band ? ` ${identity.credit_band}` : ""}
             </span>
           )}
         </div>
@@ -298,10 +355,15 @@ export default function App() {
               onChange={setMemo}
             />
           </div>
+          <label className="flex items-center gap-2 mt-4 text-[13px] text-[var(--label)] cursor-pointer select-none">
+            <input type="checkbox" checked={simRisky}
+              onChange={(e) => setSimRisky(e.target.checked)} />
+            demo: simulate a risky network (datacenter / VPN egress)
+          </label>
           <button
             onClick={send}
             disabled={busy}
-            className="mt-6 w-full bg-[var(--blue)] text-white rounded-2xl py-3.5
+            className="mt-4 w-full bg-[var(--blue)] text-white rounded-2xl py-3.5
               text-[17px] font-medium disabled:opacity-40 hover:brightness-110 transition"
           >
             {busy ? "Verifying…" : "Send"}
@@ -486,6 +548,62 @@ export default function App() {
           )}
         </section>
       </div>
+
+      {/* risk breakdown — four-dimensional signal analysis */}
+      <AnimatePresence>
+        {factors.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }} transition={SPRING}
+            className="card px-8 py-6 mt-6"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="label">Risk analysis — why this decision</div>
+              {trust != null && (
+                <div className="flex items-center gap-3">
+                  <span className="label">composite trust</span>
+                  <span className="mono text-[20px]"
+                    style={{ fontVariantNumeric: "tabular-nums",
+                             color: trust >= 0.7 ? "var(--green)"
+                               : trust >= 0.4 ? "var(--amber)" : "var(--red)" }}>
+                    {(trust * 100).toFixed(0)}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              {(["Presence", "Identity", "Device", "Transaction"] as const).map((dim) => {
+                const fs = factors.filter((f) => f.dimension === dim);
+                const worst = fs.some((f) => f.severity === "bad") ? "bad"
+                  : fs.some((f) => f.severity === "warn") ? "warn" : "ok";
+                return (
+                  <div key={dim} className="rounded-2xl border px-4 py-4"
+                    style={{ borderColor: fs.length ? sevColor(worst) + "55" : "var(--border)" }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 rounded-full"
+                        style={{ background: fs.length ? sevColor(worst) : "var(--label)" }} />
+                      <span className="text-[14px] font-semibold">{dim}</span>
+                    </div>
+                    <div className="flex flex-col gap-2.5">
+                      {fs.length === 0 && (
+                        <span className="text-[12.5px] text-[var(--label)]">no signals</span>
+                      )}
+                      {fs.map((f, i) => (
+                        <div key={i}>
+                          <div className="text-[13px] font-medium"
+                            style={{ color: sevColor(f.severity) }}>{f.label}</div>
+                          <div className="text-[12px] text-[var(--label)] leading-snug">
+                            {f.detail}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* history */}
       <section className="card px-8 py-6 mt-6">

@@ -33,6 +33,11 @@ class TransferBody(BaseModel):
     amount: float
     memo: str = ""
     jws: str = ""
+    fingerprint: str = ""
+    client_ip: str = ""
+    user_agent: str = ""
+    pasted_ssn: bool = False
+    history: list[dict] = []
 
 
 def create_app(db_path: Path | None = None, verifier_url: str = VERIFIER_URL) -> FastAPI:
@@ -101,11 +106,22 @@ def create_app(db_path: Path | None = None, verifier_url: str = VERIFIER_URL) ->
             raise HTTPException(401, "not logged in")
         if not body.jws:
             raise HTTPException(401, "attestation required")
+        # the bank knows the account's own transfer history — pass it so the
+        # risk engine can score this transfer against the user's pattern
+        hist = [{"amount": r[0], "to": r[1], "ts": r[2]} for r in db.execute(
+            "SELECT amount, to_, ts FROM transfers WHERE decision='allow' "
+            "ORDER BY id DESC LIMIT 20").fetchall()]
         try:
             r = httpx.post(f"{verifier_url}/verify",
                            json={"jws": body.jws,
-                                 "action": f"transfer:{body.amount:.2f}"},
-                           timeout=5)
+                                 "action": f"transfer:{body.amount:.2f}",
+                                 "payee": body.to,
+                                 "fingerprint": body.fingerprint,
+                                 "client_ip": body.client_ip,
+                                 "user_agent": body.user_agent,
+                                 "pasted_ssn": body.pasted_ssn,
+                                 "history": hist},
+                           timeout=8)
             v = r.json()
         except Exception as e:
             raise HTTPException(502, f"verifier unreachable: {e}")
@@ -136,7 +152,12 @@ def create_app(db_path: Path | None = None, verifier_url: str = VERIFIER_URL) ->
                     "UPDATE accounts SET balance = balance + ? WHERE name='savings'",
                     (body.amount,))
                 db.commit()
-        return {"decision": decision, "score": score, "reason": reason}
+        return {"decision": decision, "score": score, "reason": reason,
+                "recovery": v.get("recovery", []), "trust": v.get("trust"),
+                "factors": v.get("factors", []),
+                "kyc_required": v.get("kyc_required", False),
+                "ceiling": v.get("ceiling"), "credit_band": v.get("credit_band"),
+                "identity": v.get("identity")}
 
     @app.get("/transfers")
     def transfers(limit: int = 30):
