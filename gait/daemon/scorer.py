@@ -146,12 +146,12 @@ class Scorer:
             keys, pointer = self.sub.snapshot()
             p = self.score_window(keys, pointer, self._event_now())
             if p is not None:
-                # pointer alone sustains the score; only typing can raise it
-                # (and only typing can initialize it)
+                # pointer-only windows are pure liveness: they block idle
+                # decay (via last_input_t) but never move the score — only a
+                # robotic-pointer bot flag updates (to the floor). Typing is
+                # the identity channel.
                 if self.n_keys_last == 0 and not self.bot_flag:
-                    if self.rolling.S is None:
-                        return
-                    p = min(p, self.rolling.S)
+                    return
                 self.rolling.update(p, HOP_S, getattr(self, "last_weight", 1.0))
 
     def run(self) -> None:

@@ -112,7 +112,11 @@ class ModelBundle:
         return p0
 
     def p_pointer(self, rec: WindowRecord) -> float:
-        return self.calib["pointer"](self.pointer_raw(rec))
+        """Clamped hard: enrollment pointer tasks (click targets, drags) look
+        nothing like real-world mousing, so live genuine pointer can score ~0.
+        The channel is liveness, not identity — it may nudge, never veto."""
+        p = self.calib["pointer"](self.pointer_raw(rec))
+        return min(max(p, 0.35), 0.65)
 
     # --- bot detection on raw window stats ---
 

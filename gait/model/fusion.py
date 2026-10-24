@@ -58,7 +58,7 @@ def robotic_pointer(straightness_mean: float, submovement_mean: float,
             and submovement_mean <= 1.0)
 
 
-POINTER_W_CAP = 0.5  # pointer is a liveness channel, not the primary discriminator
+POINTER_W_CAP = 0.15  # pointer is a liveness channel, not an identity vote
 
 
 def fuse(p_k: float | None, n_keys: int, p_m: float | None,
@@ -73,7 +73,7 @@ def fuse(p_k: float | None, n_keys: int, p_m: float | None,
     if bot:
         return BOT_FLOOR_P, 1.5
     w_k = min(1.0, n_keys / 16) if p_k is not None else 0.0
-    w_m = min(POINTER_W_CAP, n_pointer / 200) if p_m is not None else 0.0
+    w_m = min(POINTER_W_CAP, n_pointer / 600) if p_m is not None else 0.0
     if w_k + w_m == 0:
         return None, 0.0
     p = ((w_k * (p_k or 0.0)) + (w_m * (p_m or 0.0))) / (w_k + w_m)

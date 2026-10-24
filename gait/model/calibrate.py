@@ -43,9 +43,7 @@ def simulate_takeover(bundle, first: list[WindowRecord], second: list[WindowReco
             n = len(rec.seq) if rec.seq else 16
             p = 0.5 + (bundle.p_keys(rec) - 0.5) * min(1.0, n / 12)
             return p, min(1.0, n / 16)
-        if rs.S is None:
-            return None, 0.0  # score initializes from typing only
-        return min(bundle.p_pointer(rec), rs.S), 0.5
+        return None, 0.0  # pointer is liveness-only: it never moves the score
 
     trace, mods = [], []
     for rec in first:
