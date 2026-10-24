@@ -30,9 +30,9 @@ def auc(genuine: np.ndarray, impostor: np.ndarray) -> float:
 
 
 def simulate_takeover(bundle, first: list[WindowRecord], second: list[WindowRecord],
-                      threshold: float) -> tuple[float | None, list[float]]:
+                      threshold: float) -> tuple[float | None, list[float], list[str]]:
     """Concatenate two window streams; return seconds after switch to cross
-    below threshold, plus the full score trace."""
+    below threshold, the full score trace, and each point's modality."""
     rs = RollingScore()
 
     def p_w(rec):
@@ -47,11 +47,12 @@ def simulate_takeover(bundle, first: list[WindowRecord], second: list[WindowReco
             return None, 0.0  # score initializes from typing only
         return min(bundle.p_pointer(rec), rs.S), 0.5
 
-    trace = []
+    trace, mods = [], []
     for rec in first:
         p, w = p_w(rec)
         if p is not None:
             trace.append(rs.update(p, HOP_S, w))
+            mods.append(rec.modality)
     latency = None
     t = 0.0
     for rec in second:
@@ -61,9 +62,10 @@ def simulate_takeover(bundle, first: list[WindowRecord], second: list[WindowReco
             continue
         s = rs.update(p, HOP_S, w)
         trace.append(s)
+        mods.append(rec.modality)
         if latency is None and s < threshold:
             latency = t
-    return latency, trace
+    return latency, trace, mods
 
 
 def main() -> None:
@@ -133,14 +135,19 @@ def main() -> None:
 
     # ---- thresholds (based on the ROLLING score, which is what gets attested) ----
     bundle = ModelBundle.load()  # reload with calibrations + active model
-    _, held_trace = simulate_takeover(bundle, user_held, [], T_LOW)
+    _, held_trace, held_mods = simulate_takeover(bundle, user_held, [], T_LOW)
     trace_arr = np.array(held_trace[3:])  # skip EWMA ramp-up
+    # attestations follow typing (memo -> send), so threshold + FRR are
+    # measured on typing-active trace points
+    typing_arr = np.array([s for s, m in zip(held_trace[3:], held_mods[3:])
+                           if m == "keys"])
+    basis = typing_arr if len(typing_arr) >= 10 else trace_arr
     t_high = T_HIGH_DEFAULT
-    if len(trace_arr):
-        frr = float(np.mean(trace_arr < t_high))
+    if len(basis):
+        frr = float(np.mean(basis < t_high))
         if frr > MAX_FRR:
             # relax toward the genuine 5th percentile, but never below 0.60
-            t_high = max(float(np.quantile(trace_arr, MAX_FRR)), 0.60)
+            t_high = max(float(np.quantile(basis, MAX_FRR)), 0.60)
     policy = {"t_high": round(t_high, 3), "t_low": T_LOW}
     (models_dir() / "policy.json").write_text(json.dumps(policy, indent=2))
 
@@ -158,15 +165,18 @@ def main() -> None:
     lines.append(f"- thresholds: T_HIGH={policy['t_high']}, T_LOW={policy['t_low']}")
 
     # user held-out rolling-score stats (rolling S is what gets attested)
-    mean_S = float(np.mean(trace_arr)) if len(trace_arr) else float("nan")
-    lines.append(f"- user held-out mean rolling score: **{mean_S:.3f}** (target >= 0.75)")
-    frr_final = (float(np.mean(trace_arr < policy["t_high"]))
-                 if len(trace_arr) else float("nan"))
-    lines.append(f"- user held-out rolling false-reject at T_HIGH: **{frr_final:.3f}** (target <= 0.05)")
+    mean_typing = float(np.mean(typing_arr)) if len(typing_arr) else float("nan")
+    mean_all = float(np.mean(trace_arr)) if len(trace_arr) else float("nan")
+    lines.append(f"- user held-out mean rolling score while typing: **{mean_typing:.3f}** "
+                 f"(target >= 0.75; overall incl. pointer-only: {mean_all:.3f})")
+    frr_final = (float(np.mean(typing_arr < policy["t_high"]))
+                 if len(typing_arr) else float("nan"))
+    lines.append(f"- user rolling false-reject at T_HIGH while typing: "
+                 f"**{frr_final:.3f}** (target <= 0.05)")
 
     # takeover latency: user -> each human impostor
     for pid, recs in human_imps.items():
-        lat, _ = simulate_takeover(bundle, user_held, recs, T_LOW)
+        lat, _, _ = simulate_takeover(bundle, user_held, recs, T_LOW)
         lines.append(f"- takeover latency user->{pid}: "
                      f"**{lat if lat is not None else '>'+str(len(recs)*HOP_S)} s** (target <= 10)")
 
@@ -177,7 +187,7 @@ def main() -> None:
         bot_recs = (extract_key_windows(keys, "eval_bot", "s")
                     + extract_pointer_windows(ptr, "eval_bot", "s"))
         bot_recs.sort(key=lambda r: r.t_start)
-        lat, btrace = simulate_takeover(bundle, user_held, bot_recs, 0.20)
+        lat, btrace, _ = simulate_takeover(bundle, user_held, bot_recs, 0.20)
         final = btrace[-1] if btrace else float("nan")
         lines.append(f"- bot({kind}) latency to S<0.20: **{lat} s**, final S={final:.3f}")
 
