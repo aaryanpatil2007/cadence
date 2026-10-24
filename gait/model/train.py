@@ -41,14 +41,17 @@ def load_records(edir: Path | None = None) -> dict[str, list[WindowRecord]]:
 
 
 def split_user(recs: list[WindowRecord]) -> tuple[list[WindowRecord], list[WindowRecord]]:
-    """70/30 time split PER MODALITY — enrollment is typing-first/pointer-last,
-    so a global chronological split would starve one side of the other."""
+    """70/30 split per modality, interleaved in blocks (last 3 of every 10
+    windows held out). Enrollment phases differ a lot (transcribe vs free-type
+    vs form), so a chronological tail split evaluates the model on an activity
+    it never trained on; block interleaving puts every phase on both sides.
+    Adjacent windows overlap 50%, so block boundaries leak a little — accepted
+    trade-off for matched distributions on 5-minute enrollments."""
     train, held = [], []
     for modality in ("keys", "pointer"):
         m = [r for r in recs if r.modality == modality]
-        cut = int(len(m) * TRAIN_FRACTION)
-        train.extend(m[:cut])
-        held.extend(m[cut:])
+        for i, r in enumerate(m):
+            (held if i % 10 >= 7 else train).append(r)
     train.sort(key=lambda r: (r.session_id, r.t_start))
     held.sort(key=lambda r: (r.session_id, r.t_start))
     return train, held
@@ -85,7 +88,8 @@ def train_encoder(profiles: dict[str, list[WindowRecord]],
     model = KeystrokeEncoder().to(dev)
     print(f"[train] encoder params: {count_params(model)}")
     opt = torch.optim.AdamW(model.parameters(), lr=3e-3)
-    epochs = 60
+    # small enrollment sets are cheap per epoch — train longer for margin
+    epochs = 300 if len(seqs) < 600 else 60
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     rng = np.random.default_rng(0)
     batch = min(256, len(seqs))
@@ -164,7 +168,7 @@ def main() -> None:
     # L2 pointer GMM
     imp_ptr = [r for pid, recs in profiles.items() if pid != "user"
                for r in _by_modality(recs, "pointer")]
-    if len(ut_ptr) >= 20 and len(imp_ptr) >= 20:
+    if len(ut_ptr) >= 12 and len(imp_ptr) >= 20:
         from .pointer_gmm import PointerModel
         pm = PointerModel().fit(stats_matrix(ut_ptr), stats_matrix(imp_ptr))
         pm.save(mdir / "pointer_model.pkl")

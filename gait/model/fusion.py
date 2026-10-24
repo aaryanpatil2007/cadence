@@ -24,9 +24,18 @@ class Calibration:
         return 1.0 / (1.0 + math.exp(-(self.a * x + self.b)))
 
 
-def fit_calibration(genuine: np.ndarray, impostor: np.ndarray) -> Calibration:
-    """Fit logistic regression on 1-d scores (genuine=1, impostor=0)."""
+def fit_calibration(genuine: np.ndarray, impostor: np.ndarray,
+                    trim_genuine: float = 0.0) -> Calibration:
+    """Fit logistic regression on 1-d scores (genuine=1, impostor=0).
+
+    trim_genuine drops that fraction of the LOWEST genuine scores before
+    fitting: a few pathological genuine windows (pauses, corrections) flatten
+    the curve and gift borderline impostors ~0.5; the EWMA absorbs the
+    occasional rejected genuine window instead."""
     from sklearn.linear_model import LogisticRegression
+    if trim_genuine > 0 and len(genuine) >= 10:
+        cut = np.quantile(genuine, trim_genuine)
+        genuine = genuine[genuine >= cut]
     X = np.concatenate([genuine, impostor]).reshape(-1, 1)
     y = np.concatenate([np.ones(len(genuine)), np.zeros(len(impostor))])
     # near-unregularized + balanced: small genuine sets must still reach p~1
@@ -80,11 +89,11 @@ class RollingScore:
     def update(self, p: float, hop_s: float, weight: float = 1.0) -> float:
         """EWMA update; `weight` scales the effective rate so thin evidence
         (e.g. pointer-only windows) moves the score more slowly. Asymmetric:
-        confidence falls at full rate but rises at 0.7x, so a single
+        confidence falls at full rate but rises at 0.85x, so a single
         user-like window can't vault an impostor over the threshold."""
         w = min(max(weight, 0.0), 1.5)
         if self.S is not None and p > self.S:
-            w *= 0.7
+            w *= 0.85
         alpha = 1.0 - math.exp(-hop_s * w / self.tau_s)
         self.S = p if self.S is None else alpha * p + (1 - alpha) * self.S
         return self.S

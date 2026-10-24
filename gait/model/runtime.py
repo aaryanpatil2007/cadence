@@ -34,6 +34,7 @@ class ModelBundle:
         self.pointer_model = None    # PointerModel
         self.calib: dict[str, Calibration] = {}
         self.active_keys_model = "l0"
+        self.keys_combiner = "min"
         self.policy = {"t_high": 0.70, "t_low": 0.40}
 
     @staticmethod
@@ -50,6 +51,7 @@ class ModelBundle:
         if cal.exists():
             d = json.loads(cal.read_text())
             b.active_keys_model = d.get("active_keys_model", "l0")
+            b.keys_combiner = d.get("keys_combiner", "min")
             for name, ab in d.get("calibrations", {}).items():
                 b.calib[name] = Calibration(a=ab["a"], b=ab["b"])
         pol = mdir / "policy.json"
@@ -92,15 +94,16 @@ class ModelBundle:
     # --- calibrated probabilities ---
 
     def p_keys(self, rec: WindowRecord) -> float:
-        """Conservative combination: when L1 is active, an impostor must fool
-        BOTH the distribution baseline (L0) and the sequence encoder (L1).
-        The encoder alone can overfit tiny enrollment sets; L0 alone misses
-        sequence structure. min() keeps the demo honest on fresh input."""
+        """Combiner is chosen at calibration time from held-out AUC:
+        - "min": both models discriminate -> an impostor must fool BOTH
+          (guards against the encoder memorizing tiny enrollment sets)
+        - "l1": the stats baseline is near-chance on this data -> min() would
+          cap genuine scores at noise level, so trust the encoder alone."""
         p0 = self.calib["keys_l0"](self.keys_raw_l0(rec))
         if (self.active_keys_model == "l1" and self.encoder is not None
                 and rec.seq and "keys_l1" in self.calib):
             p1 = self.calib["keys_l1"](self.keys_raw_l1(rec))
-            return min(p0, p1)
+            return min(p0, p1) if self.keys_combiner == "min" else p1
         return p0
 
     def p_pointer(self, rec: WindowRecord) -> float:

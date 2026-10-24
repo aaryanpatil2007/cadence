@@ -92,7 +92,7 @@ class Scorer:
             )
             p_k = self.bundle.p_keys(rec)
             # sparse windows have noisy stats: shrink toward neutral
-            p_k = 0.5 + (p_k - 0.5) * min(1.0, n_keys / 20)
+            p_k = 0.5 + (p_k - 0.5) * min(1.0, n_keys / 12)
             bot = bot or self.bundle.is_bot_window(rec)
 
         p_m = None

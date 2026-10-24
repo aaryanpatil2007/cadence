@@ -41,7 +41,7 @@ def simulate_takeover(bundle, first: list[WindowRecord], second: list[WindowReco
             return 0.02, 1.5
         if rec.modality == "keys":
             n = len(rec.seq) if rec.seq else 16
-            p = 0.5 + (bundle.p_keys(rec) - 0.5) * min(1.0, n / 20)
+            p = 0.5 + (bundle.p_keys(rec) - 0.5) * min(1.0, n / 12)
             return p, min(1.0, n / 16)
         if rs.S is None:
             return None, 0.0  # score initializes from typing only
@@ -107,7 +107,7 @@ def main() -> None:
         g1 = raw_scores([r for r in gh_keys if r.seq], bundle.keys_raw_l1)
         i1 = raw_scores([r for r in imp_keys if r.seq], bundle.keys_raw_l1)
         if len(g1) and len(i1):
-            calibrations["keys_l1"] = fit_calibration(g1, i1)
+            calibrations["keys_l1"] = fit_calibration(g1, i1, trim_genuine=0.10)
             aucs["keys_l1"] = auc(g1, i1)
             # prefer L1 unless it is clearly worse than L0 on held-out
             if aucs["keys_l1"] >= aucs["keys_l0"] - 0.02:
@@ -121,22 +121,26 @@ def main() -> None:
     else:
         calibrations["pointer"] = fit_calibration(np.array([1.0]), np.array([-1.0]))
 
+    # min() combiner only when L0 actually discriminates on held-out data;
+    # otherwise it caps genuine scores at noise level (see runtime.p_keys)
+    combiner = "min" if aucs.get("keys_l0", 0) >= 0.75 else "l1"
     (models_dir() / "calib.json").write_text(json.dumps({
         "active_keys_model": active,
+        "keys_combiner": combiner,
         "calibrations": {k: {"a": c.a, "b": c.b} for k, c in calibrations.items()},
         "auc": {k: round(v, 4) for k, v in aucs.items()},
     }, indent=2))
 
-    # ---- thresholds ----
+    # ---- thresholds (based on the ROLLING score, which is what gets attested) ----
     bundle = ModelBundle.load()  # reload with calibrations + active model
-    gen_p = np.array([bundle.p_keys(r) for r in gh_keys]
-                     + [bundle.p_pointer(r) for r in gh_ptr])
+    _, held_trace = simulate_takeover(bundle, user_held, [], T_LOW)
+    trace_arr = np.array(held_trace[3:])  # skip EWMA ramp-up
     t_high = T_HIGH_DEFAULT
-    if len(gen_p):
-        frr = float(np.mean(gen_p < t_high))
+    if len(trace_arr):
+        frr = float(np.mean(trace_arr < t_high))
         if frr > MAX_FRR:
             # relax toward the genuine 5th percentile, but never below 0.60
-            t_high = max(float(np.quantile(gen_p, MAX_FRR)), 0.60)
+            t_high = max(float(np.quantile(trace_arr, MAX_FRR)), 0.60)
     policy = {"t_high": round(t_high, 3), "t_low": T_LOW}
     (models_dir() / "policy.json").write_text(json.dumps(policy, indent=2))
 
@@ -153,12 +157,12 @@ def main() -> None:
                      f"{m['identities']} identities")
     lines.append(f"- thresholds: T_HIGH={policy['t_high']}, T_LOW={policy['t_low']}")
 
-    # user held-out mean rolling score
-    _, trace = simulate_takeover(bundle, user_held, [], T_LOW)
-    mean_S = float(np.mean(trace)) if trace else float("nan")
+    # user held-out rolling-score stats (rolling S is what gets attested)
+    mean_S = float(np.mean(trace_arr)) if len(trace_arr) else float("nan")
     lines.append(f"- user held-out mean rolling score: **{mean_S:.3f}** (target >= 0.75)")
-    frr_final = float(np.mean(gen_p < policy['t_high'])) if len(gen_p) else float("nan")
-    lines.append(f"- user held-out false-reject rate at T_HIGH: **{frr_final:.3f}** (target <= 0.05)")
+    frr_final = (float(np.mean(trace_arr < policy["t_high"]))
+                 if len(trace_arr) else float("nan"))
+    lines.append(f"- user held-out rolling false-reject at T_HIGH: **{frr_final:.3f}** (target <= 0.05)")
 
     # takeover latency: user -> each human impostor
     for pid, recs in human_imps.items():
