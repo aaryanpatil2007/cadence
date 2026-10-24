@@ -31,6 +31,7 @@ class ModelBundle:
         self.baseline_pointer: ScaledManhattan | None = None
         self.encoder = None          # torch module (lazy)
         self.prototype: np.ndarray | None = None
+        self.enroll_embs: np.ndarray | None = None
         self.pointer_model = None    # PointerModel
         self.calib: dict[str, Calibration] = {}
         self.active_keys_model = "l0"
@@ -66,6 +67,8 @@ class ModelBundle:
             b.encoder.load_state_dict(torch.load(enc, map_location="cpu"))
             b.encoder.eval()
             b.prototype = np.load(proto)
+            ee = mdir / "enroll_embs.npy"
+            b.enroll_embs = np.load(ee) if ee.exists() else None
         pm = mdir / "pointer_model.pkl"
         if pm.exists():
             from .pointer_gmm import PointerModel
@@ -79,10 +82,12 @@ class ModelBundle:
 
     def keys_raw_l1(self, rec: WindowRecord) -> float:
         import torch
-        from .encoder import pad_batch
+        from .encoder import pad_batch, topk_cos
         rows, mask = pad_batch([np.array(rec.seq, dtype=np.float32)])
         with torch.no_grad():
             emb = self.encoder(rows, mask).numpy()[0]
+        if getattr(self, "enroll_embs", None) is not None:
+            return float(topk_cos(self.enroll_embs, emb)[0])
         return float(np.dot(emb, self.prototype))
 
     def pointer_raw(self, rec: WindowRecord) -> float:

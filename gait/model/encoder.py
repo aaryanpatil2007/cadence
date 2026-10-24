@@ -103,3 +103,14 @@ def augment(seq: np.ndarray, rng: np.random.Generator) -> np.ndarray:
 
 def count_params(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters())
+
+
+def topk_cos(enroll_embs: np.ndarray, probes: np.ndarray, k: int = 5) -> np.ndarray:
+    """Score each probe as the mean of its top-k cosines to the enrollment
+    embeddings. A person has several typing modes; a single mean prototype
+    blurs them, top-k matches the nearest mode."""
+    probes = np.atleast_2d(probes)
+    sims = probes @ enroll_embs.T  # (P, E), all L2-normalized
+    k = min(k, sims.shape[1])
+    part = np.partition(sims, -k, axis=1)[:, -k:]
+    return part.mean(axis=1)

@@ -69,30 +69,20 @@ def _seq_arrays(recs: list[WindowRecord]) -> list[np.ndarray]:
     return [np.array(r.seq, dtype=np.float32) for r in recs if len(r.seq) >= 8]
 
 
-def _prototype(model, seqs: list[np.ndarray]) -> np.ndarray:
+def _embed(model, seqs: list[np.ndarray]) -> np.ndarray:
     import torch
     from .encoder import pad_batch
     rows, mask = pad_batch(seqs)
     with torch.no_grad():
-        embs = model(rows, mask).numpy()
-    proto = embs.mean(axis=0)
-    return proto / (np.linalg.norm(proto) + 1e-9)
-
-
-def _cos_scores(model, proto: np.ndarray, seqs: list[np.ndarray]) -> np.ndarray:
-    import torch
-    from .encoder import pad_batch
-    rows, mask = pad_batch(seqs)
-    with torch.no_grad():
-        embs = model(rows, mask).numpy()
-    return embs @ proto
+        return model(rows, mask).numpy()
 
 
 def _encoder_auc(model, user_train_seqs, genuine_seqs, impostor_seqs) -> float:
     from sklearn.metrics import roc_auc_score
-    proto = _prototype(model, user_train_seqs)
-    g = _cos_scores(model, proto, genuine_seqs)
-    i = _cos_scores(model, proto, impostor_seqs)
+    from .encoder import topk_cos
+    enroll = _embed(model, user_train_seqs)
+    g = topk_cos(enroll, _embed(model, genuine_seqs))
+    i = topk_cos(enroll, _embed(model, impostor_seqs))
     y = np.concatenate([np.ones(len(g)), np.zeros(len(i))])
     return float(roc_auc_score(y, np.concatenate([g, i])))
 
@@ -185,7 +175,10 @@ def train_encoder(profiles: dict[str, list[WindowRecord]],
             best_name, best_model, best_auc, best_secs = name, m, auc, secs
     print(f"[train] encoder selected: {best_name} (AUC {best_auc:.3f})")
 
-    proto = _prototype(best_model, user_train_seqs)
+    enroll_embs = _embed(best_model, user_train_seqs)
+    np.save(models_dir() / "enroll_embs.npy", enroll_embs)
+    proto = enroll_embs.mean(axis=0)
+    proto /= (np.linalg.norm(proto) + 1e-9)
     meta = {"params": count_params(best_model),
             "train_seconds": round(best_secs, 1),
             "identities": len(label_map), "sequences": len(seqs),
