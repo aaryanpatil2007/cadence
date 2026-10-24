@@ -9,14 +9,16 @@ import time
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from gait.attest import jws as jws_mod
-from .policy import load_policy, decide, parse_amount, KYC_REQUIRED_ABOVE
+from .policy import load_policy, parse_amount
 from .store import Store
 from .crs import get_client, PASS_PERSONA
+from .signals import device_risk, transaction_risk
+from .risk import evaluate
 
 IAT_SKEW_S = 2
 
@@ -30,6 +32,12 @@ class RegisterBody(BaseModel):
 class VerifyBody(BaseModel):
     jws: str
     action: str = "unspecified"
+    payee: str = "savings"
+    fingerprint: str = ""
+    client_ip: str = ""
+    user_agent: str = ""
+    pasted_ssn: bool = False
+    history: list[dict] = []
 
 
 class KycBody(BaseModel):
@@ -54,16 +62,21 @@ def create_app(store: Store | None = None) -> FastAPI:
     def register(body: RegisterBody):
         db.register(body.device_id, body.pubkey_pem, body.label)
         db.audit("register", body.device_id, None, "ok", body.label)
-        # anchor the behavioral profile to a bureau-verified identity:
-        # TransUnion TruValidate IDV (CRS sandbox persona) at registration
+        # anchor the behavioral profile to a bureau-verified identity, and
+        # pull credit + fraud risk to drive risk-based limits (all CRS):
         crs = get_client()
         idv = crs.verify_identity(PASS_PERSONA)
+        credit = crs.credit_score(PASS_PERSONA)
+        fraud = crs.fraud_score(PASS_PERSONA)
         name = f"{PASS_PERSONA['firstName'].title()} {PASS_PERSONA['lastName'].title()}"
-        db.set_identity(body.device_id, name, idv.get("verified", False),
-                        True, idv.get("mode", "mock"))
+        db.set_identity(body.device_id, name, idv.get("verified", False), True,
+                        idv.get("mode", "mock"), credit.get("score"),
+                        credit.get("band", "unknown"), fraud.get("risk"),
+                        fraud.get("level", "unknown"))
         db.audit("crs:anchor", body.device_id, None,
                  "ok" if idv.get("verified") else "deny",
-                 f"TruValidate IDV ({idv.get('mode')})")
+                 f"IDV {idv.get('mode')} · FICO {credit.get('score')} "
+                 f"({credit.get('band')}) · fraud {fraud.get('risk')}/100")
         return {"ok": True, "identity": db.get_identity(body.device_id)}
 
     @app.get("/identity/{device_id}")
@@ -93,7 +106,7 @@ def create_app(store: Store | None = None) -> FastAPI:
         return {"nonce": db.issue_nonce(), "expires_in": 30}
 
     @app.post("/verify")
-    def verify(body: VerifyBody):
+    def verify(body: VerifyBody, request: Request):
         def deny(reason: str, device_id=None, score=None):
             db.audit(body.action, device_id, score, "deny", reason)
             return {"decision": "deny", "score": score, "reason": reason}
@@ -127,38 +140,34 @@ def create_app(store: Store | None = None) -> FastAPI:
         amount = parse_amount(body.action)
         biometric = bool(payload.get("biometric"))
         challenge_passed = db.recent_challenge(device_id)
-        decision, extra = decide(float(score), amount=amount,
-                                 challenge_passed=challenge_passed,
-                                 biometric=biometric)
-        if decision == "stepup" and db.consume_kyc(device_id):
-            decision, extra = decide(float(score), amount=amount,
-                                     kyc_passed=True)
-        reason = extra or {
-            "allow": f"score {score} >= threshold",
-            "stepup": f"score {score} in step-up band",
-            "deny": f"score {score} below floor — not the enrolled user",
-        }[decision]
+        kyc_passed = db.consume_kyc(device_id)
 
-        # deterministic recovery: the client always knows the next step
-        recovery: list[str] = []
-        if decision == "stepup":
-            if amount >= KYC_REQUIRED_ABOVE:
-                recovery = ["kyc"]
-            elif challenge_passed:
-                recovery = ["touchid", "kyc"]  # one challenge max, then escalate
-            else:
-                recovery = ["challenge", "touchid"]
-        elif decision == "deny":
-            recovery = ["touchid", "kyc"]  # a denial is a dead end for an
-            # impostor, not for the real user: hardware/bureau proof recovers
+        # gather the four signals
+        ip = body.client_ip or (request.client.host if request.client else "")
+        device = device_risk(db, device_id, body.fingerprint, ip,
+                             body.pasted_ssn, body.user_agent)
+        txn = transaction_risk(body.history, amount, body.payee)
+        identity = db.get_identity(device_id)
 
-        db.audit(body.action, device_id, score, decision, reason)
-        return {"decision": decision, "score": score, "reason": reason,
-                "recovery": recovery,
-                "kyc_required": amount >= KYC_REQUIRED_ABOVE,
-                "challenge_passed": challenge_passed,
-                "biometric": biometric,
-                "identity": db.get_identity(device_id)}
+        result = evaluate(presence=float(score), amount=amount,
+                          identity=identity, device=device, txn=txn,
+                          biometric=biometric, kyc_passed=kyc_passed,
+                          challenge_passed=challenge_passed)
+
+        db.audit(body.action, device_id, score, result["decision"],
+                 result["reason"] or result["decision"])
+        return {"decision": result["decision"], "score": score,
+                "reason": result["reason"] or {
+                    "allow": "all signals clear",
+                    "stepup": "additional verification needed",
+                    "deny": "blocked",
+                }[result["decision"]],
+                "recovery": result["recovery"], "trust": result["trust"],
+                "factors": result["factors"], "ceiling": result["ceiling"],
+                "credit_band": result["credit_band"],
+                "kyc_required": result["kyc_required"],
+                "challenge_passed": challenge_passed, "biometric": biometric,
+                "identity": identity}
 
     @app.post("/challenge")
     def challenge(body: dict):

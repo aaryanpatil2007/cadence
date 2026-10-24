@@ -24,22 +24,32 @@ import httpx
 
 BASE = os.environ.get("CRS_BASE", "https://api-sandbox.stitchcredit.com/api")
 
-# Sandbox persona P01 (prime; IDV result: PASS) — the enrolled user's anchor
+# Sandbox persona P01 (prime; IDV PASS; FICO 790; fraud risk 11) — anchor
 PASS_PERSONA = {
     "firstName": "MARGARET", "lastName": "OKAFOR", "ssn": "666701001",
     "dob": "1984-03-14", "street1": "1420 WILLOW CREEK DR",
     "city": "SAN JOSE", "state": "CA", "zip": "95125",
+    "email": "margaret.okafor@example.com", "phone": "5550101001",
+    "ip": "203.0.113.11",
 }
-# Sandbox persona P13 (synthetic identity / fraud; IDV result: FAIL) — the
-# demo villain: "SSN issue date inconsistent with DOB; multiple names on SSN"
+# Sandbox persona P13 (synthetic identity; IDV FAIL; thin file; fraud risk 88)
+# demo villain: email 3 days old, VOIP prepaid phone, no name match
 FAIL_PERSONA = {
     "firstName": "KAYLA", "lastName": "BRENNAN", "ssn": "666701013",
     "dob": "1999-12-24", "street1": "9021 KINGSTON PIKE",
     "city": "KNOXVILLE", "state": "TN", "zip": "37923",
+    "email": "kb.9921x@example.com", "phone": "5550101013",
+    "ip": "198.51.100.13",
 }
 
 IDV_FIELDS = ["firstName", "lastName", "ssn", "dob",
               "street1", "city", "state", "zip"]
+
+CREDIT_CONFIG = "tu-prequal-fico9"
+FRAUD_CONFIG = "fraud-finder"
+# persona-accurate mock outcomes (keyed by ssn)
+_MOCK_CREDIT = {"666701001": 790, "666701005": 540, "666701013": 640}
+_MOCK_FRAUD = {"666701001": 11, "666701005": 52, "666701013": 88}
 
 
 class CRSClient:
@@ -106,6 +116,113 @@ class CRSClient:
                 {"code": "2201", "text": "SSN has been used by multiple names"}]}
         return {"mode": "mock", "verified": False, "messages": [
             {"code": "2101", "text": "identity could not be verified"}]}
+
+
+    def credit_score(self, persona: dict) -> dict:
+        """TransUnion FICO 9 soft-pull. Returns {mode, score, band}."""
+        if self.live:
+            try:
+                tok = self._login()
+                body = {
+                    "firstName": persona["firstName"], "lastName": persona["lastName"],
+                    "ssn": persona["ssn"].replace("-", ""),
+                    "addresses": [{"addressLine1": persona["street1"],
+                                   "city": persona["city"], "state": persona["state"],
+                                   "postalCode": persona["zip"],
+                                   "borrowerResidencyType": "Current"}],
+                }
+                r = httpx.post(
+                    f"{BASE}/transunion/credit-report/standard/{CREDIT_CONFIG}",
+                    json=body, headers={"Authorization": f"Bearer {tok}",
+                                        "Content-Type": "application/json"},
+                    timeout=40)
+                r.raise_for_status()
+                data = r.json()
+                score = None
+                for rpt in (data.get("creditReports") or [data]):
+                    for s in (rpt.get("scores") or []):
+                        if s.get("scoreValue") is not None:
+                            score = int(s["scoreValue"])
+                            break
+                    if score:
+                        break
+                return {"mode": "live", "score": score, "band": _band(score)}
+            except Exception as e:
+                return {"mode": "live-error", "score": None, "band": "unknown",
+                        "error": str(e)[:160]}
+        score = _MOCK_CREDIT.get(persona["ssn"].replace("-", ""))
+        return {"mode": "mock", "score": score, "band": _band(score)}
+
+    def fraud_score(self, persona: dict) -> dict:
+        """AtData Fraud Finder: email/phone/IP fraud risk. Returns
+        {mode, risk, level, signals}."""
+        if self.live:
+            try:
+                tok = self._login()
+                body = {
+                    "firstName": persona["firstName"], "lastName": persona["lastName"],
+                    "email": persona.get("email", ""),
+                    "phoneNumber": persona.get("phone", ""),
+                    "ipAddress": persona.get("ip", ""),
+                    "address": {"addressLine1": persona["street1"],
+                                "city": persona["city"], "state": persona["state"],
+                                "postalCode": persona["zip"]},
+                }
+                r = httpx.post(f"{BASE}/fraud-finder/{FRAUD_CONFIG}", json=body,
+                               headers={"Authorization": f"Bearer {tok}",
+                                        "Content-Type": "application/json"},
+                               timeout=40)
+                r.raise_for_status()
+                data = r.json()
+                risk = (data.get("risk") or {}).get("score")
+                return {"mode": "live", "risk": risk, "level": _fraud_level(risk),
+                        "signals": _fraud_signals(data)}
+            except Exception as e:
+                return {"mode": "live-error", "risk": None, "level": "unknown",
+                        "signals": [], "error": str(e)[:160]}
+        risk = _MOCK_FRAUD.get(persona["ssn"].replace("-", ""))
+        sig = (["email 3 days old", "VOIP prepaid phone", "name/email mismatch"]
+               if risk and risk >= 70 else [])
+        return {"mode": "mock", "risk": risk, "level": _fraud_level(risk),
+                "signals": sig}
+
+
+def _band(score: int | None) -> str:
+    if score is None:
+        return "no-file"
+    if score >= 740:
+        return "prime"
+    if score >= 670:
+        return "near-prime"
+    if score >= 580:
+        return "subprime"
+    return "deep-subprime"
+
+
+def _fraud_level(risk: int | None) -> str:
+    if risk is None:
+        return "unknown"
+    if risk >= 70:
+        return "high"
+    if risk >= 40:
+        return "medium"
+    return "low"
+
+
+def _fraud_signals(data: dict) -> list[str]:
+    out = []
+    email = data.get("email") or {}
+    if isinstance(email, dict):
+        age = email.get("firstSeenDays") or email.get("ageDays")
+        if isinstance(age, (int, float)) and age < 30:
+            out.append(f"email only {int(age)} days old")
+    phone = data.get("phone") or {}
+    if isinstance(phone, dict):
+        if str(phone.get("lineType", "")).lower() in ("voip", "prepaid"):
+            out.append(f"{phone['lineType']} phone")
+        if str(phone.get("ownerMatch", "")).lower() in ("no_match", "none"):
+            out.append("phone owner mismatch")
+    return out
 
 
 _client: CRSClient | None = None

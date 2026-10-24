@@ -161,3 +161,61 @@ def test_register_anchors_identity(tmp_data_dir, tmp_path):
     r = client.get("/identity/dev1").json()
     assert r["identity"]["verified"] is True
     assert "Okafor" in r["identity"]["name"]
+
+
+def _verify_body(sign, client, score, action, **extra):
+    token = attestation(sign, _nonce(client), score)
+    return {"jws": token, "action": action, **extra}
+
+
+def test_datacenter_ip_forces_stepup(tmp_data_dir, tmp_path):
+    client, sign, _ = make_env(tmp_path)
+    r = client.post("/verify", json=_verify_body(
+        sign, client, 0.95, "transfer:300.00",
+        fingerprint="fp-known", client_ip="52.1.2.3")).json()
+    # cloud IP = high device risk -> step-up even with great presence
+    assert r["decision"] == "stepup"
+    assert any(f["label"] == "Datacenter / VPN IP" for f in r["factors"])
+
+
+def test_pasted_ssn_is_a_factor(tmp_data_dir, tmp_path):
+    client, sign, _ = make_env(tmp_path)
+    r = client.post("/verify", json=_verify_body(
+        sign, client, 0.95, "transfer:300.00",
+        fingerprint="fp1", client_ip="24.5.6.7", pasted_ssn=True)).json()
+    assert any(f["label"] == "Pasted identity data" for f in r["factors"])
+
+
+def test_transaction_anomaly_new_payee_big_amount(tmp_data_dir, tmp_path):
+    client, sign, _ = make_env(tmp_path)
+    history = [{"amount": 200, "to": "savings", "ts": 0},
+               {"amount": 150, "to": "savings", "ts": 0}]
+    r = client.post("/verify", json=_verify_body(
+        sign, client, 0.95, "transfer:4000.00", payee="stranger",
+        fingerprint="fp1", client_ip="24.5.6.7", history=history)).json()
+    labels = [f["label"] for f in r["factors"]]
+    assert "Unusual amount" in labels and "New payee" in labels
+
+
+def test_clean_transfer_allows_with_factors(tmp_data_dir, tmp_path):
+    client, sign, _ = make_env(tmp_path)
+    history = [{"amount": 500, "to": "savings", "ts": 0}]
+    r = client.post("/verify", json=_verify_body(
+        sign, client, 0.95, "transfer:400.00", payee="savings",
+        fingerprint="fp-home", client_ip="24.5.6.7", history=history)).json()
+    assert r["decision"] == "allow"
+    assert r["trust"] > 0.8
+    assert any(f["dimension"] == "Presence" for f in r["factors"])
+
+
+def test_credit_ceiling_from_band(tmp_data_dir, tmp_path):
+    client, sign, store = make_env(tmp_path)
+    # force a subprime band on the device -> low ceiling
+    store.set_identity("dev1", "Test User", True, True, "mock",
+                       540, "subprime", 52, "medium")
+    r = client.post("/verify", json=_verify_body(
+        sign, client, 0.95, "transfer:3000.00",
+        fingerprint="fp1", client_ip="24.5.6.7")).json()
+    assert r["decision"] == "stepup"
+    assert any(f["label"] == "Over account limit" for f in r["factors"])
+    assert r["ceiling"] == 2500

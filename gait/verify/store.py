@@ -29,7 +29,12 @@ class Store:
             device_id TEXT, score REAL, decision TEXT, reason TEXT);
         CREATE TABLE IF NOT EXISTS identity(
             device_id TEXT PRIMARY KEY, name TEXT, verified INTEGER,
-            ofac_clear INTEGER, mode TEXT, ts REAL);
+            ofac_clear INTEGER, mode TEXT, ts REAL,
+            credit_score INTEGER, credit_band TEXT, fraud_risk INTEGER,
+            fraud_level TEXT);
+        CREATE TABLE IF NOT EXISTS fingerprints(
+            device_id TEXT, fp TEXT, ip TEXT, first_seen REAL,
+            PRIMARY KEY (device_id, fp));
         CREATE TABLE IF NOT EXISTS kyc_exceptions(
             device_id TEXT PRIMARY KEY, expires_at REAL);
         CREATE TABLE IF NOT EXISTS challenge_attempts(
@@ -81,20 +86,37 @@ class Store:
         self.db.commit()
 
     def set_identity(self, device_id: str, name: str, verified: bool,
-                     ofac_clear: bool, mode: str) -> None:
-        self.db.execute("INSERT OR REPLACE INTO identity VALUES(?,?,?,?,?,?)",
-                        (device_id, name, int(verified), int(ofac_clear),
-                         mode, time.time()))
+                     ofac_clear: bool, mode: str, credit_score: int | None,
+                     credit_band: str, fraud_risk: int | None,
+                     fraud_level: str) -> None:
+        self.db.execute(
+            "INSERT OR REPLACE INTO identity VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (device_id, name, int(verified), int(ofac_clear), mode, time.time(),
+             credit_score, credit_band, fraud_risk, fraud_level))
         self.db.commit()
 
     def get_identity(self, device_id: str) -> dict | None:
         r = self.db.execute(
-            "SELECT name, verified, ofac_clear, mode FROM identity "
+            "SELECT name, verified, ofac_clear, mode, credit_score, "
+            "credit_band, fraud_risk, fraud_level FROM identity "
             "WHERE device_id=?", (device_id,)).fetchone()
         if not r:
             return None
-        return {"name": r[0], "verified": bool(r[1]),
-                "ofac_clear": bool(r[2]), "mode": r[3]}
+        return {"name": r[0], "verified": bool(r[1]), "ofac_clear": bool(r[2]),
+                "mode": r[3], "credit_score": r[4], "credit_band": r[5],
+                "fraud_risk": r[6], "fraud_level": r[7]}
+
+    def seen_fingerprint(self, device_id: str, fp: str, ip: str) -> bool:
+        """True if this fingerprint was seen before for this device."""
+        row = self.db.execute(
+            "SELECT 1 FROM fingerprints WHERE device_id=? AND fp=?",
+            (device_id, fp)).fetchone()
+        if row:
+            return True
+        self.db.execute("INSERT INTO fingerprints VALUES(?,?,?,?)",
+                        (device_id, fp, ip, time.time()))
+        self.db.commit()
+        return False
 
     def grant_kyc(self, device_id: str, ttl_s: float = 180) -> float:
         exp = time.time() + ttl_s
