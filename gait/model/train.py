@@ -41,8 +41,17 @@ def load_records(edir: Path | None = None) -> dict[str, list[WindowRecord]]:
 
 
 def split_user(recs: list[WindowRecord]) -> tuple[list[WindowRecord], list[WindowRecord]]:
-    cut = int(len(recs) * TRAIN_FRACTION)
-    return recs[:cut], recs[cut:]
+    """70/30 time split PER MODALITY — enrollment is typing-first/pointer-last,
+    so a global chronological split would starve one side of the other."""
+    train, held = [], []
+    for modality in ("keys", "pointer"):
+        m = [r for r in recs if r.modality == modality]
+        cut = int(len(m) * TRAIN_FRACTION)
+        train.extend(m[:cut])
+        held.extend(m[cut:])
+    train.sort(key=lambda r: (r.session_id, r.t_start))
+    held.sort(key=lambda r: (r.session_id, r.t_start))
+    return train, held
 
 
 def _by_modality(recs: list[WindowRecord], modality: str) -> list[WindowRecord]:
