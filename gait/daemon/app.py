@@ -45,6 +45,8 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
         from .enroll import device_id
         return device_id()
 
+    last_attest: dict = {"payload": None}
+
     @app.get("/status")
     def status():
         st = scorer.status()
@@ -91,9 +93,14 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
             "key_backend": s.backend,
         }
         token = jws_mod.encode(payload, s.sign_raw)
+        last_attest["payload"] = payload
         from fastapi.responses import JSONResponse
         return JSONResponse({"jws": token, "payload": payload},
                             headers={"X-Gait-Attestation": token})
+
+    @app.get("/last_attest")
+    def get_last_attest():
+        return {"payload": last_attest["payload"]}
 
     @app.get("/events")
     async def events(request: Request):
@@ -144,6 +151,12 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
                 raise HTTPException(400, str(e))
 
     if DASH_DIST.exists():
+        from fastapi.responses import RedirectResponse
+
+        @app.get("/enroll")
+        def enroll_redirect():
+            return RedirectResponse("/#/enroll")
+
         app.mount("/", StaticFiles(directory=DASH_DIST, html=True), name="web")
 
     return app
