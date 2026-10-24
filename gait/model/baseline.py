@@ -19,9 +19,14 @@ class ScaledManhattan:
         return self
 
     def score(self, X: np.ndarray) -> np.ndarray:
-        """Higher = more like the enrolled user. Shape (n,)."""
+        """Higher = more like the enrolled user. Shape (n,).
+
+        Per-dim distances are capped at 10 MADs so one weird dimension
+        (e.g. a zero-variance count feature) can't dominate the sum.
+        """
         X = np.atleast_2d(np.asarray(X, dtype=float))
-        return -np.sum(np.abs(X - self.mu) / self.s, axis=1)
+        z = np.minimum(np.abs(X - self.mu) / self.s, 10.0)
+        return -np.sum(z, axis=1)
 
     def to_dict(self) -> dict:
         return {"mu": self.mu.tolist(), "s": self.s.tolist()}
