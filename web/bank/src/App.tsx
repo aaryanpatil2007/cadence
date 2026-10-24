@@ -25,6 +25,7 @@ function decisionColor(d: string | null) {
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [backend, setBackend] = useState<string>("mock");
   const [accounts, setAccounts] = useState<{ name: string; balance: number }[]>([]);
   const [amount, setAmount] = useState("500");
   const [memo, setMemo] = useState("");
@@ -41,7 +42,7 @@ export default function App() {
   const refresh = useCallback(() => {
     fetch(`${BANK}/accounts`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j) => { setAccounts(j.accounts); setLoggedIn(true); })
+      .then((j) => { setAccounts(j.accounts); setBackend(j.backend ?? "mock"); setLoggedIn(true); })
       .catch(() => {});
     fetch(`${BANK}/transfers`).then((r) => r.json())
       .then((j) => setHistory(j.transfers)).catch(() => {});
@@ -163,6 +164,13 @@ export default function App() {
         <div className="flex items-center gap-3">
           <Landmark size={22} strokeWidth={1.4} className="text-[var(--blue)]" />
           <span className="text-[19px] font-semibold tracking-tight">Meridian</span>
+          {backend === "nessie" && (
+            <span className="glass px-3 py-1 text-[12px] tracking-wide"
+              style={{ borderRadius: 999, color: "var(--green)",
+                       borderColor: "var(--green)" }}>
+              LIVE · Capital One Nessie
+            </span>
+          )}
         </div>
         <div className="flex gap-6">
           {accounts.map((a) => (

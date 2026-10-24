@@ -42,6 +42,13 @@ timing. Dashboard flips to **Automation**, score ~0.05. Send → deny.
 > "Steal the cookie, steal a whole signed attestation — still nothing. One
 > nonce, one use, ten seconds."
 
+**(Optional beats if time allows, pick ONE):**
+- **Guard mode**: restart daemon with `--guard`, teammate types for ~6s →
+  the Mac locks itself on stage. Biggest audible-gasp moment; rehearse it.
+- **gait-exec**: in terminal, `scripts/gait-exec -- ./deploy.sh` →
+  "allow (score 0.9)" while presenter typed; same command during bot/teammate
+  input → refused. One line: "any command, any API — same rail."
+
 **2:40 — Close.**
 > "A ~55k-parameter model trained on this laptop in under 90 seconds. Raw
 > behavior never left RAM. The server only ever saw a signed number. Any API
