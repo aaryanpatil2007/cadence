@@ -19,10 +19,34 @@ def load_policy() -> dict:
     return dict(DEFAULTS)
 
 
-def decide(score: float, policy: dict | None = None) -> str:
+# risk tiers (amount in dollars): CRS shapes the policy, not just a bolt-on
+KYC_REQUIRED_ABOVE = 5000.0   # bureau-grade identity verification required
+ELEVATED_ABOVE = 1000.0       # elevated band: allow needs a stronger score
+ELEVATED_MARGIN = 0.10
+
+
+def parse_amount(action: str) -> float:
+    """Actions look like 'transfer:500.00'; anything else is amount 0."""
+    if ":" in action:
+        try:
+            return float(action.rsplit(":", 1)[1])
+        except ValueError:
+            pass
+    return 0.0
+
+
+def decide(score: float, policy: dict | None = None,
+           amount: float = 0.0, kyc_passed: bool = False) -> tuple[str, str]:
+    """Returns (decision, extra-reason). kyc_passed = a one-time CRS identity
+    verification exception is being spent on this action."""
     pol = policy or load_policy()
-    if score >= pol["t_high"]:
-        return "allow"
-    if score >= pol["t_low"]:
-        return "stepup"
-    return "deny"
+    if score < pol["t_low"]:
+        return "deny", ""
+    if amount >= KYC_REQUIRED_ABOVE and not kyc_passed:
+        return "stepup", f"amount >= ${KYC_REQUIRED_ABOVE:.0f}: CRS identity verification required"
+    if kyc_passed:
+        return "allow", "CRS identity verified (one-time exception)"
+    t_allow = pol["t_high"] + (ELEVATED_MARGIN if amount >= ELEVATED_ABOVE else 0)
+    if score >= t_allow:
+        return "allow", ""
+    return "stepup", ""

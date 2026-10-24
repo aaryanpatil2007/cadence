@@ -27,6 +27,11 @@ class Store:
         CREATE TABLE IF NOT EXISTS audit(
             id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL, action TEXT,
             device_id TEXT, score REAL, decision TEXT, reason TEXT);
+        CREATE TABLE IF NOT EXISTS identity(
+            device_id TEXT PRIMARY KEY, name TEXT, verified INTEGER,
+            ofac_clear INTEGER, mode TEXT, ts REAL);
+        CREATE TABLE IF NOT EXISTS kyc_exceptions(
+            device_id TEXT PRIMARY KEY, expires_at REAL);
         """)
         self.db.commit()
 
@@ -72,6 +77,42 @@ class Store:
             "VALUES(?,?,?,?,?,?)",
             (time.time(), action, device_id, score, decision, reason))
         self.db.commit()
+
+    def set_identity(self, device_id: str, name: str, verified: bool,
+                     ofac_clear: bool, mode: str) -> None:
+        self.db.execute("INSERT OR REPLACE INTO identity VALUES(?,?,?,?,?,?)",
+                        (device_id, name, int(verified), int(ofac_clear),
+                         mode, time.time()))
+        self.db.commit()
+
+    def get_identity(self, device_id: str) -> dict | None:
+        r = self.db.execute(
+            "SELECT name, verified, ofac_clear, mode FROM identity "
+            "WHERE device_id=?", (device_id,)).fetchone()
+        if not r:
+            return None
+        return {"name": r[0], "verified": bool(r[1]),
+                "ofac_clear": bool(r[2]), "mode": r[3]}
+
+    def grant_kyc(self, device_id: str, ttl_s: float = 180) -> float:
+        exp = time.time() + ttl_s
+        self.db.execute(
+            "INSERT OR REPLACE INTO kyc_exceptions VALUES(?,?)",
+            (device_id, exp))
+        self.db.commit()
+        return exp
+
+    def consume_kyc(self, device_id: str) -> bool:
+        """One-time: returns True (and removes it) if a valid exception exists."""
+        r = self.db.execute(
+            "SELECT expires_at FROM kyc_exceptions WHERE device_id=?",
+            (device_id,)).fetchone()
+        if not r or r[0] < time.time():
+            return False
+        self.db.execute("DELETE FROM kyc_exceptions WHERE device_id=?",
+                        (device_id,))
+        self.db.commit()
+        return True
 
     def audit_tail(self, limit: int = 50) -> list[dict]:
         rows = self.db.execute(

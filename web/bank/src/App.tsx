@@ -38,6 +38,10 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [challenge, setChallenge] = useState<string | null>(null);
   const [lastJws, setLastJws] = useState<string | null>(null);
+  const [identity, setIdentity] = useState<{ name: string; verified: boolean; mode: string } | null>(null);
+  const [kycOpen, setKycOpen] = useState(false);
+  const [kyc, setKyc] = useState({ first_name: "KYLIA", last_name: "PAOLIMELLI", ssn: "666285642" });
+  const [kycState, setKycState] = useState<"idle" | "checking" | "failed">("idle");
 
   const refresh = useCallback(() => {
     fetch(`${BANK}/accounts`, { credentials: "include" })
@@ -47,6 +51,11 @@ export default function App() {
     fetch(`${BANK}/transfers`).then((r) => r.json())
       .then((j) => setHistory(j.transfers)).catch(() => {});
     fetch(`${VERIFIER}/policy`).then((r) => r.json()).then(setPolicy).catch(() => {});
+    fetch(`${DAEMON}/status`).then((r) => r.json())
+      .then((s) => fetch(`${VERIFIER}/identity/${s.device_id}`))
+      .then((r) => r.json())
+      .then((j) => setIdentity(j.identity ?? null))
+      .catch(() => {});
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -109,10 +118,15 @@ export default function App() {
       setFlash(d);
       setTimeout(() => setFlash(null), 600);
       if (d === "stepup") {
-        const sr = await fetch(`${DAEMON}/stepup/start`, { method: "POST" });
-        const sj = await sr.json();
-        setChallenge(sj.challenge);
+        if (res.kyc_required) {
+          setKycOpen(true); // high-value: bureau-grade identity rung (CRS)
+        } else {
+          const sr = await fetch(`${DAEMON}/stepup/start`, { method: "POST" });
+          const sj = await sr.json();
+          setChallenge(sj.challenge);
+        }
       }
+      if (res.identity) setIdentity(res.identity);
       refresh();
     } finally {
       setBusy(false);
@@ -123,6 +137,28 @@ export default function App() {
     await fetch(`${DAEMON}/stepup/finish`, { method: "POST" });
     setChallenge(null);
     await send();
+  };
+
+  const submitKyc = async () => {
+    setKycState("checking");
+    try {
+      const st = await fetch(`${DAEMON}/status`).then((r) => r.json());
+      const r = await fetch(`${VERIFIER}/kyc`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device_id: st.device_id, ...kyc }),
+      });
+      const j = await r.json();
+      if (j.verified) {
+        setKycOpen(false);
+        setKycState("idle");
+        await send(); // the one-time CRS exception is spent on this attempt
+      } else {
+        setKycState("failed");
+      }
+    } catch {
+      setKycState("failed");
+    }
   };
 
   if (!loggedIn) {
@@ -171,6 +207,13 @@ export default function App() {
               LIVE · Capital One Nessie
             </span>
           )}
+          {identity?.verified && (
+            <span className="glass px-3 py-1 text-[12px] tracking-wide"
+              style={{ borderRadius: 999, color: "var(--blue)",
+                       borderColor: "var(--blue)" }}>
+              Identity anchored · {identity.name} · CRS
+            </span>
+          )}
         </div>
         <div className="flex gap-6">
           {accounts.map((a) => (
@@ -213,6 +256,45 @@ export default function App() {
           </button>
 
           <AnimatePresence>
+            {kycOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-5 glass px-5 py-4"
+                  style={{ borderColor: "var(--blue)" }}>
+                  <div className="label mb-1" style={{ color: "var(--blue)" }}>
+                    High-value transfer — identity verification (CRS)
+                  </div>
+                  <p className="text-[14px] text-[var(--label)] mb-3">
+                    Behavior alone doesn't authorize this amount. Verify the
+                    account holder's identity against the credit bureaus.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {([["First name", "first_name"], ["Last name", "last_name"],
+                       ["SSN", "ssn"]] as const).map(([label, k]) => (
+                      <input key={k} value={kyc[k]}
+                        onChange={(e) => setKyc({ ...kyc, [k]: e.target.value })}
+                        placeholder={label}
+                        className="bg-[rgba(0,0,0,0.4)] border border-[var(--border)]
+                          rounded-xl px-4 py-2.5 outline-none text-[15px]" />
+                    ))}
+                  </div>
+                  {kycState === "failed" && (
+                    <div className="mt-2 text-[13px]" style={{ color: "var(--red)" }}>
+                      Identity could not be verified — transfer stays blocked.
+                    </div>
+                  )}
+                  <button onClick={submitKyc} disabled={kycState === "checking"}
+                    className="mt-3 bg-[var(--blue)] text-white rounded-full px-5
+                      py-2 text-[15px] font-semibold disabled:opacity-40">
+                    {kycState === "checking" ? "Verifying with CRS…" : "Verify identity"}
+                  </button>
+                </div>
+              </motion.div>
+            )}
             {challenge && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
