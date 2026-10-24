@@ -17,7 +17,7 @@ from pathlib import Path
 
 import httpx
 
-BASE = "http://api.nessieisreal.com"
+BASE = "https://api.nessieisreal.com"
 STATE = Path(__file__).resolve().parent.parent / "data" / "nessie.json"
 
 
@@ -76,20 +76,36 @@ class Nessie:
         }))
         print(f"[nessie] created customer {cid[:8]}… with checking + savings")
 
+    def _transfer_total(self) -> float:
+        try:
+            rows = self._req("GET", f"/accounts/{self.checking_id}/transfers")
+            return sum(float(r.get("amount", 0)) for r in rows
+                       if r.get("status") == "completed")
+        except Exception:
+            return 0.0
+
     def balances(self) -> list[dict] | None:
-        out = []
-        for name, aid in (("checking", self.checking_id),
-                          ("savings", self.savings_id)):
-            acct = self._get_account(aid)
-            if acct is None:
-                return None
-            out.append({"name": name, "balance": float(acct["balance"])})
-        return out
+        """The sandbox never mutates stored balances, so compute them from
+        Nessie's own data: opening balance +/- the live transfer ledger."""
+        chk = self._get_account(self.checking_id)
+        sav = self._get_account(self.savings_id)
+        if chk is None or sav is None:
+            return None
+        moved = self._transfer_total()
+        return [{"name": "checking", "balance": float(chk["balance"]) - moved},
+                {"name": "savings", "balance": float(sav["balance"]) + moved}]
 
     def transfer(self, amount: float, memo: str) -> dict:
+        """Create a Nessie transfer record (the calhacks sandbox's
+        TransferCreate takes only {transaction_date, status, amount,
+        description}); balances shown in the UI are derived from this ledger
+        in balances()."""
+        import datetime
         return self._req("POST", f"/accounts/{self.checking_id}/transfers", {
-            "medium": "balance", "payee_id": self.savings_id,
-            "amount": amount, "description": (memo or "gait transfer")[:255],
+            "transaction_date": datetime.date.today().isoformat(),
+            "status": "completed",
+            "amount": amount,
+            "description": f"to savings: {(memo or 'gait transfer')[:200]}",
         })
 
 
