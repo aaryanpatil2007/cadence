@@ -1,79 +1,45 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
 
+/* ---- Ada (daylight) mapped onto the monitor/enroll token names ---- */
 :root {
-  --bg: #08080a;
-  --surface: #141418;
-  --surface-2: #1b1b20;
-  --elevated: #222228;
-  --text: #f5f5f7;
-  --text-2: #a8a8b3;
-  --muted: #6e6e78;
-  --green: #32d74b;
-  --amber: #ffd426;
-  --red: #ff453a;
-  --accent: #5e9eff;
-  --blue: #5e9eff;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-2: rgba(255, 255, 255, 0.12);
-  --label: rgba(245, 245, 247, 0.55);
+  --bg: #f9f9f9;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --elevated: #eef0f2;
+  --text: #0a0b0c;
+  --green: #00543d;
+  --amber: #8a6a00;
+  --red: #c0362c;
+  --blue: #0a0b0c;         /* buttons/accents become dark ink pills (Ada) */
+  --accent: #00543d;
+  --border: rgba(10, 11, 12, 0.11);
+  --label: rgba(10, 11, 12, 0.5);
 }
 
-html,
-body {
+html, body {
+  margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, "SF Pro Display", "SF Pro Text", Inter, system-ui,
-    sans-serif;
-  font-size: 17px;
-  line-height: 1.5;
+  font-family: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 16px; line-height: 1.5; font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
 .label {
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--label);
-  font-weight: 500;
+  font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--label); font-weight: 500;
 }
-
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-}
-
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .glass {
-  background: rgba(29, 29, 31, 0.72);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--border);
-  border-radius: 24px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 9999px;
 }
-
 .hero-num {
-  font-size: clamp(96px, 14vw, 120px);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
+  font-size: clamp(88px, 13vw, 112px); font-weight: 500;
+  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;
 }
+.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; }
 
-.mono {
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 12.5px;
-  line-height: 1.6;
-}
-
-::selection {
-  background: rgba(10, 132, 255, 0.4);
-}
-
-/* thin scrollbars for feeds */
-.feed::-webkit-scrollbar {
-  width: 4px;
-}
-.feed::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-}
+::selection { background: #abcbf9; }
+.feed::-webkit-scrollbar { width: 4px; }
+.feed::-webkit-scrollbar-thumb { background: rgba(10, 11, 12, 0.15); border-radius: 2px; }

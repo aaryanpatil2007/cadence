@@ -38,7 +38,7 @@ function ScoreRing({ score, color }: { score: number | null; color: string }) {
     >
       <circle
         cx="210" cy="210" r={R} fill="none"
-        stroke="rgba(255,255,255,0.07)" strokeWidth="2"
+        stroke="rgba(10,11,12,0.08)" strokeWidth="2"
       />
       <motion.circle
         cx="210" cy="210" r={R} fill="none"
@@ -102,7 +102,7 @@ function ModalityBar({
     <div className="flex items-center gap-4">
       <span className="text-[var(--label)]">{icon}</span>
       <span className="label w-20">{name}</span>
-      <div className="flex-1 h-[3px] rounded-full bg-[rgba(255,255,255,0.08)] overflow-hidden">
+      <div className="flex-1 h-[3px] rounded-full bg-[rgba(10,11,12,0.08)] overflow-hidden">
         <motion.div
           className="h-full rounded-full"
           style={{ background: "var(--text)" }}
