@@ -41,6 +41,6 @@ def test_fuse_weights():
     # 8 keys (w=0.5) at 0.8 + 100 samples (w=min(0.15, 100/600)) at 0.2:
     # pointer barely dents the keys verdict
     p, w = fuse(0.8, 8, 0.2, 100, bot=False)
-    assert p > 0.63 and abs(w - (0.5 + 100 / 600)) < 1e-9
+    assert p > 0.63 and abs(w - 0.65) < 1e-9
     # pointer weight is capped at 0.15 even with many samples (liveness only)
     assert fuse(None, 0, 0.9, 10000, bot=False)[1] == 0.15
