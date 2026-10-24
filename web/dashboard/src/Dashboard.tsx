@@ -130,7 +130,16 @@ export default function Dashboard() {
   const [history, setHistory] = useState<{ t: number; s: number | null }[]>([]);
 
   useEffect(() => {
-    getStatus().then(setStatus).catch(() => {});
+    // seed the gauge immediately so there's no "No signal" flash before SSE
+    fetch(`${DAEMON}/status`).then((r) => r.json()).then((s) => {
+      setStatus(s);
+      if (s.score != null) setEv({
+        t: Date.now() / 1000, score: s.score, keys: s.modalities?.keys ?? null,
+        pointer: s.modalities?.pointer ?? null, bot_flag: s.bot_flag,
+        last_input_age_s: s.last_input_age_s, ready: s.ready,
+        signals: s.signals,
+      });
+    }).catch(() => {});
     getPolicy().then(setPolicy).catch(() => {});
     const unsub = subscribeScores((e) => {
       setEv(e);
