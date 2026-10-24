@@ -1,7 +1,7 @@
-# GAIT — pitch content (Best Security Hack)
+# Cadence — pitch content (Best Security Hack)
 
 ## One-liner
-WebAuthn proves it was you at login. **Gait proves it's still you — every
+WebAuthn proves it was you at login. **Cadence proves it's still you — every
 second after.**
 
 ## The gap

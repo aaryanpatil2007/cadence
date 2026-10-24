@@ -1,4 +1,4 @@
-# GAIT — Behavioral Proof-of-Identity for macOS
+# Cadence — Behavioral Proof-of-Identity for macOS
 
 A local daemon learns how one specific person types, moves, scrolls, and
 clicks, keeps a rolling confidence score that it's still that person at the
@@ -48,7 +48,7 @@ of {scratch, pretrained-frozen, pretrained-finetuned} on *your* data. The
 pointer model can pull population negatives from the
 [Balabit mouse dynamics dataset](https://github.com/balabit/Mouse-Dynamics-Challenge).
 
-## Beyond the bank: gait as an authorization rail
+## Beyond the bank: Cadence as an authorization rail
 
 - `scripts/gait-exec -- <command>` — any shell command gated by a fresh
   attestation (`gait-exec --action deploy -- ./deploy.sh`)

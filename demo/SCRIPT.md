@@ -1,4 +1,4 @@
-# GAIT — 3-minute stage script
+# Cadence — 3-minute stage script
 
 Screen layout: dashboard (left half), bank (right half), terminal hidden behind.
 Second laptop ready with `demo/hijack.sh`, the Mac's Wi-Fi IP, and a copied

@@ -153,7 +153,7 @@ export default function Dashboard() {
       <header className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Fingerprint size={22} strokeWidth={1.5} />
-          <span className="text-[19px] font-semibold tracking-tight">Gait</span>
+          <span className="text-[19px] font-semibold tracking-tight">Cadence</span>
           <span className="label ml-2">Behavioral proof of identity</span>
         </div>
         <div className="flex items-center gap-3">

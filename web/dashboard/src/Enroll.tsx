@@ -66,7 +66,7 @@ export default function Enroll() {
       <header className="flex items-center justify-between px-10 py-6">
         <div className="flex items-center gap-3">
           <Fingerprint size={20} strokeWidth={1.5} />
-          <span className="font-semibold tracking-tight">Gait · Enrollment</span>
+          <span className="font-semibold tracking-tight">Cadence · Enrollment</span>
         </div>
         <div className="label">
           {progress.keystrokes ?? 0} keystrokes · {progress.pointer_samples ?? 0}{" "}
@@ -135,7 +135,7 @@ function Intro(p: {
         Five minutes.<br />Then your Mac knows it’s you.
       </h1>
       <p className="text-[var(--label)] text-[19px] mt-4 max-w-xl mx-auto">
-        Type a few sentences, click a few targets. Gait learns your rhythm —
+        Type a few sentences, click a few targets. Cadence learns your rhythm —
         not your words.
       </p>
       <div className="flex items-center justify-center gap-3 mt-10">
