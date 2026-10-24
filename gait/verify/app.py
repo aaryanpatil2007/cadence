@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from gait.attest import jws as jws_mod
 from .policy import load_policy, decide, parse_amount, KYC_REQUIRED_ABOVE
 from .store import Store
-from .crs import get_client, TEST_IDENTITY
+from .crs import get_client, PASS_PERSONA
 
 IAT_SKEW_S = 2
 
@@ -34,9 +34,14 @@ class VerifyBody(BaseModel):
 
 class KycBody(BaseModel):
     device_id: str
-    first_name: str
-    last_name: str
+    firstName: str
+    lastName: str
     ssn: str
+    dob: str = ""
+    street1: str = ""
+    city: str = ""
+    state: str = ""
+    zip: str = ""
 
 
 def create_app(store: Store | None = None) -> FastAPI:
@@ -49,19 +54,16 @@ def create_app(store: Store | None = None) -> FastAPI:
     def register(body: RegisterBody):
         db.register(body.device_id, body.pubkey_pem, body.label)
         db.audit("register", body.device_id, None, "ok", body.label)
-        # anchor the behavioral profile to a bureau-verified identity (CRS):
-        # IDV + OFAC screen on the sandbox test identity at registration time
+        # anchor the behavioral profile to a bureau-verified identity:
+        # TransUnion TruValidate IDV (CRS sandbox persona) at registration
         crs = get_client()
-        idv = crs.verify_identity(**TEST_IDENTITY)
-        ofac = crs.ofac_screen(TEST_IDENTITY["first_name"],
-                               TEST_IDENTITY["last_name"])
-        name = f"{TEST_IDENTITY['first_name'].title()} {TEST_IDENTITY['last_name'].title()}"
+        idv = crs.verify_identity(PASS_PERSONA)
+        name = f"{PASS_PERSONA['firstName'].title()} {PASS_PERSONA['lastName'].title()}"
         db.set_identity(body.device_id, name, idv.get("verified", False),
-                        ofac.get("clear", False), idv.get("mode", "mock"))
+                        True, idv.get("mode", "mock"))
         db.audit("crs:anchor", body.device_id, None,
                  "ok" if idv.get("verified") else "deny",
-                 f"IDV {idv.get('mode')} · OFAC "
-                 f"{'clear' if ofac.get('clear') else 'MATCH'}")
+                 f"TruValidate IDV ({idv.get('mode')})")
         return {"ok": True, "identity": db.get_identity(body.device_id)}
 
     @app.get("/identity/{device_id}")
@@ -70,19 +72,21 @@ def create_app(store: Store | None = None) -> FastAPI:
 
     @app.post("/kyc")
     def kyc(body: KycBody):
-        """Trust-ladder rung 3: live CRS identity verification. Success grants
-        a one-time, 3-minute exception for this device."""
+        """Trust-ladder rung 3: live CRS TruValidate identity verification.
+        Success grants a one-time, 3-minute exception for this device."""
         crs = get_client()
-        result = crs.verify_identity(body.first_name, body.last_name, body.ssn)
+        result = crs.verify_identity(body.model_dump(exclude={"device_id"}))
+        msgs = "; ".join(m.get("text", "") for m in result.get("messages", []))
         if result.get("verified"):
             exp = db.grant_kyc(body.device_id)
             db.audit("crs:kyc", body.device_id, None, "allow",
-                     f"identity verified ({result.get('mode')})")
+                     f"TruValidate verified ({result.get('mode')})")
             return {"verified": True, "mode": result.get("mode"),
-                    "expires_in": int(exp - __import__('time').time())}
+                    "expires_in": int(exp - time.time())}
         db.audit("crs:kyc", body.device_id, None, "deny",
-                 f"identity NOT verified ({result.get('mode')})")
-        return {"verified": False, "mode": result.get("mode")}
+                 f"TruValidate: {msgs[:140]} ({result.get('mode')})")
+        return {"verified": False, "mode": result.get("mode"),
+                "messages": result.get("messages", [])}
 
     @app.get("/nonce")
     def nonce():

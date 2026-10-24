@@ -117,9 +117,12 @@ def test_high_value_requires_kyc(tmp_data_dir, tmp_path):
 def test_kyc_grants_one_time_exception(tmp_data_dir, tmp_path):
     client, sign, _ = make_env(tmp_path)
     # correct CRS test identity (mock mode) -> exception granted
-    k = client.post("/kyc", json={"device_id": "dev1", "first_name": "KYLIA",
-                                  "last_name": "PAOLIMELLI",
-                                  "ssn": "666285642"}).json()
+    k = client.post("/kyc", json={"device_id": "dev1", "firstName": "MARGARET",
+                                  "lastName": "OKAFOR", "ssn": "666701001",
+                                  "dob": "1984-03-14",
+                                  "street1": "1420 WILLOW CREEK DR",
+                                  "city": "SAN JOSE", "state": "CA",
+                                  "zip": "95125"}).json()
     assert k["verified"] is True
     token = attestation(sign, _nonce(client), 0.95)
     r = client.post("/verify", json={"jws": token,
@@ -134,8 +137,9 @@ def test_kyc_grants_one_time_exception(tmp_data_dir, tmp_path):
 
 def test_kyc_rejects_wrong_identity(tmp_data_dir, tmp_path):
     client, _, _ = make_env(tmp_path)
-    k = client.post("/kyc", json={"device_id": "dev1", "first_name": "EVIL",
-                                  "last_name": "TWIN", "ssn": "000000000"}).json()
+    k = client.post("/kyc", json={"device_id": "dev1", "firstName": "KAYLA",
+                                  "lastName": "BRENNAN",
+                                  "ssn": "666701013"}).json()
     assert k["verified"] is False
 
 
@@ -156,4 +160,4 @@ def test_register_anchors_identity(tmp_data_dir, tmp_path):
     client, _, _ = make_env(tmp_path)
     r = client.get("/identity/dev1").json()
     assert r["identity"]["verified"] is True
-    assert "Paolimelli" in r["identity"]["name"]
+    assert "Okafor" in r["identity"]["name"]

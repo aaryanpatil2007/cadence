@@ -40,8 +40,15 @@ export default function App() {
   const [lastJws, setLastJws] = useState<string | null>(null);
   const [identity, setIdentity] = useState<{ name: string; verified: boolean; mode: string } | null>(null);
   const [kycOpen, setKycOpen] = useState(false);
-  const [kyc, setKyc] = useState({ first_name: "KYLIA", last_name: "PAOLIMELLI", ssn: "666285642" });
+  const PASS_P = { firstName: "MARGARET", lastName: "OKAFOR", ssn: "666701001",
+    dob: "1984-03-14", street1: "1420 WILLOW CREEK DR", city: "SAN JOSE",
+    state: "CA", zip: "95125" };
+  const SYNTH_P = { firstName: "KAYLA", lastName: "BRENNAN", ssn: "666701013",
+    dob: "1999-12-24", street1: "9021 KINGSTON PIKE", city: "KNOXVILLE",
+    state: "TN", zip: "37923" };
+  const [kyc, setKyc] = useState<Record<string, string>>(PASS_P);
   const [kycState, setKycState] = useState<"idle" | "checking" | "failed">("idle");
+  const [kycMsg, setKycMsg] = useState<string>("");
 
   const refresh = useCallback(() => {
     fetch(`${BANK}/accounts`, { credentials: "include" })
@@ -152,12 +159,16 @@ export default function App() {
       if (j.verified) {
         setKycOpen(false);
         setKycState("idle");
+        setKycMsg("");
         await send(); // the one-time CRS exception is spent on this attempt
       } else {
         setKycState("failed");
+        setKycMsg((j.messages ?? []).map((m: { text: string }) => m.text).join(" · ")
+          || "Identity could not be verified.");
       }
     } catch {
       setKycState("failed");
+      setKycMsg("Verification service unreachable.");
     }
   };
 
@@ -272,26 +283,39 @@ export default function App() {
                     Behavior alone doesn't authorize this amount. Verify the
                     account holder's identity against the credit bureaus.
                   </p>
-                  <div className="flex flex-col gap-2">
-                    {([["First name", "first_name"], ["Last name", "last_name"],
-                       ["SSN", "ssn"]] as const).map(([label, k]) => (
+                  <div className="grid grid-cols-2 gap-2">
+                    {([["First name", "firstName"], ["Last name", "lastName"],
+                       ["SSN", "ssn"], ["Date of birth", "dob"],
+                       ["Street", "street1"], ["City", "city"],
+                       ["State", "state"], ["ZIP", "zip"]] as const)
+                      .map(([label, k]) => (
                       <input key={k} value={kyc[k]}
                         onChange={(e) => setKyc({ ...kyc, [k]: e.target.value })}
                         placeholder={label}
                         className="bg-[rgba(0,0,0,0.4)] border border-[var(--border)]
-                          rounded-xl px-4 py-2.5 outline-none text-[15px]" />
+                          rounded-xl px-4 py-2.5 outline-none text-[14px]" />
                     ))}
                   </div>
                   {kycState === "failed" && (
                     <div className="mt-2 text-[13px]" style={{ color: "var(--red)" }}>
-                      Identity could not be verified — transfer stays blocked.
+                      TransUnion: {kycMsg} — transfer stays blocked.
                     </div>
                   )}
-                  <button onClick={submitKyc} disabled={kycState === "checking"}
-                    className="mt-3 bg-[var(--blue)] text-white rounded-full px-5
-                      py-2 text-[15px] font-semibold disabled:opacity-40">
-                    {kycState === "checking" ? "Verifying with CRS…" : "Verify identity"}
-                  </button>
+                  <div className="mt-3 flex items-center gap-4">
+                    <button onClick={submitKyc} disabled={kycState === "checking"}
+                      className="bg-[var(--blue)] text-white rounded-full px-5
+                        py-2 text-[15px] font-semibold disabled:opacity-40">
+                      {kycState === "checking" ? "Verifying with CRS…" : "Verify identity"}
+                    </button>
+                    <button onClick={() => { setKyc(SYNTH_P); setKycState("idle"); }}
+                      className="label hover:text-[var(--red)] transition-colors">
+                      demo: use synthetic identity
+                    </button>
+                    <button onClick={() => { setKyc(PASS_P); setKycState("idle"); }}
+                      className="label hover:text-[var(--green)] transition-colors">
+                      reset
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}
