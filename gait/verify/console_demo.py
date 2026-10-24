@@ -49,14 +49,17 @@ SYNTH_FACTORS = [
 def seed(store, n: int = 26, seed: int = 7) -> None:
     """Populate the identity vault + a backlog of scored transactions."""
     rng = random.Random(seed)
-    for name, fico, band, frisk, flevel in CUSTOMERS:
+    # skip Margaret (CUSTOMERS[0]) — she's the real CRS-anchored hero, added
+    # live at device registration so her card reads "live bureau pull"
+    population = CUSTOMERS[1:]
+    for name, fico, band, frisk, flevel in population:
         dev = "cust_" + name.lower().replace(" ", "_")
         store.set_identity(dev, name, flevel != "high", True, "mock",
                            fico, band, frisk, flevel)
     now = time.time()
     for i in range(n):
         t = now - (n - i) * rng.uniform(14, 48)
-        name, fico, band, frisk, flevel = rng.choice(CUSTOMERS)
+        name, fico, band, frisk, flevel = rng.choice(population)
         roll = rng.random()
         if flevel == "high":
             dec, trust, amt = "deny", round(rng.uniform(0.08, 0.2), 2), rng.choice([4800, 6200, 9000])
@@ -86,7 +89,7 @@ def seed(store, n: int = 26, seed: int = 7) -> None:
 
 def next_event(store, rng: random.Random) -> None:
     """Emit one fresh plausible transaction (for the live pulse)."""
-    name, fico, band, frisk, flevel = rng.choice(CUSTOMERS[:8])  # mostly clean
+    name, fico, band, frisk, flevel = rng.choice(CUSTOMERS[1:8])  # mostly clean
     amt = rng.choice([90, 180, 420, 650, 1100, 260])
     trust = round(rng.uniform(0.83, 0.96), 2)
     store.audit(f"transfer:{amt:.2f}", "cust_" + name.lower().replace(" ", "_"),

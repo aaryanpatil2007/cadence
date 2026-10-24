@@ -11,9 +11,11 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from gait.attest import jws as jws_mod
+from gait.paths import REPO_ROOT
 from .policy import load_policy, parse_amount
 from .store import Store
 from .crs import get_client, PASS_PERSONA
@@ -21,6 +23,7 @@ from .signals import device_risk, transaction_risk
 from .risk import evaluate
 
 IAT_SKEW_S = 2
+CONSOLE_DIST = REPO_ROOT / "web" / "console" / "dist"
 
 
 class RegisterBody(BaseModel):
@@ -232,6 +235,10 @@ def create_app(store: Store | None = None) -> FastAPI:
                 yield {"event": "stats", "data": _json.dumps(db.stats())}
                 await asyncio.sleep(1.0)
         return EventSourceResponse(gen())
+
+    # Cadence Console SPA (same origin as the API, so no CORS for console reads)
+    if CONSOLE_DIST.exists():
+        app.mount("/", StaticFiles(directory=CONSOLE_DIST, html=True), name="console")
 
     return app
 
