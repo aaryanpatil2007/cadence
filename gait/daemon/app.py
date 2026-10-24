@@ -123,6 +123,18 @@ def create_app(scorer, pump=None, enroll_mgr=None, stepup_mgr=None,
             return {"ok": True, "valid_for_s": 60}
         return {"ok": False}
 
+    @app.post("/demo/set")
+    def demo_set(score: float, signals: str = ""):
+        """Demo-playback: drive the behavioral score along a scripted timeline
+        (present -> absent -> fraud). Real attestation + verification underneath;
+        only the presence value is scripted. No-op unless the scorer supports it."""
+        if hasattr(scorer, "set"):
+            scorer.set(score)
+            if hasattr(scorer, "bot_flag"):
+                scorer.bot_flag = score < 0.08
+            return {"ok": True, "score": score}
+        return {"ok": False, "reason": "live scorer; demo-set ignored"}
+
     @app.get("/events")
     async def events(request: Request):
         async def gen():
@@ -206,30 +218,58 @@ def main() -> None:
                     help="open the enrollment UI in the browser")
     ap.add_argument("--guard", action="store_true",
                     help="lock the screen when someone else is at the keyboard")
+    ap.add_argument("--demo", action="store_true",
+                    help="demo-playback: scripted scorer driven by /demo/set, "
+                         "auto-registers with the verifier (for filming)")
     ap.add_argument("--port", type=int, default=7777)
     args = ap.parse_args()
 
+    import os
+    demo = args.demo or os.environ.get("CADENCE_DEMO") == "1"
+
     buffer = RingBuffer()
-    start_capture_thread(buffer)
     pump = EventPump(buffer)
     pump.start()
-
-    bundle = None
-    try:
-        b = ModelBundle.load()
-        if b.ready():
-            bundle = b
-            print(f"[daemon] models loaded (keys model: {b.active_keys_model})")
-        else:
-            print("[daemon] no trained models yet — scoring disabled until enrollment+train")
-    except Exception as e:
-        print(f"[daemon] model load failed: {e}")
-
-    scorer = Scorer(buffer, pump, bundle)
-    scorer.start()
-
     enroll_mgr = EnrollmentManager(pump)
-    stepup_mgr = StepUpManager(pump, lambda: scorer.bundle)
+
+    if demo:
+        from .scorer import FakeScorer
+        scorer = FakeScorer(0.94)
+        print("[daemon] DEMO mode — scripted scorer, drive with POST /demo/set?score=")
+
+        def _register():
+            import httpx
+            from gait.attest.signer import get_signer
+            from .enroll import device_id
+            vurl = os.environ.get("GAIT_VERIFIER_URL", "http://127.0.0.1:7800")
+            for _ in range(20):
+                try:
+                    httpx.post(f"{vurl}/register", json={
+                        "device_id": device_id(),
+                        "pubkey_pem": get_signer().public_key_pem,
+                        "label": "cadence demo mac"}, timeout=4)
+                    print("[daemon] registered device with verifier (demo)")
+                    return
+                except Exception:
+                    time.sleep(1.5)
+        threading.Thread(target=_register, daemon=True).start()
+        stepup_mgr = StepUpManager(pump, lambda: None)
+        bundle = None
+    else:
+        start_capture_thread(buffer)
+        bundle = None
+        try:
+            b = ModelBundle.load()
+            if b.ready():
+                bundle = b
+                print(f"[daemon] models loaded (keys model: {b.active_keys_model})")
+            else:
+                print("[daemon] no trained models yet — scoring disabled until enrollment+train")
+        except Exception as e:
+            print(f"[daemon] model load failed: {e}")
+        scorer = Scorer(buffer, pump, bundle)
+        scorer.start()
+        stepup_mgr = StepUpManager(pump, lambda: scorer.bundle)
 
     if args.collect and bundle is not None:
         from gait.features.keystroke import extract_key_windows

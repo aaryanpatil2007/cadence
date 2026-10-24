@@ -178,6 +178,8 @@ class FakeScorer(Scorer):
         self.bot_flag = False
         self.n_keys_last = 20
         self.n_pointer_last = 200
+        self.signals = {}
+        self.set(fixed_score)
 
     @property
     def score(self) -> float | None:
@@ -187,6 +189,17 @@ class FakeScorer(Scorer):
         self.fixed = score
         self.p_keys_last = score
         self.p_pointer_last = score
+        # plausible live signals that track the scripted presence value
+        if score is None:
+            self.signals = {}
+        elif score >= 0.7:
+            self.signals = {"hold_ms": 92.0, "gap_ms": 148.0, "rhythm_var": 0.32,
+                            "typing_rate": 4.6, "mouse_speed": 840.0,
+                            "curvature": 0.36, "submovements": 2.4, "scroll_rate": 1.8}
+        else:
+            self.signals = {"hold_ms": 61.0, "gap_ms": 94.0, "rhythm_var": 0.08,
+                            "typing_rate": 7.1, "mouse_speed": 1480.0,
+                            "curvature": 0.12, "submovements": 1.0, "scroll_rate": 0.4}
 
     def last_input_age_s(self) -> float:
         return 0.5
@@ -194,8 +207,8 @@ class FakeScorer(Scorer):
     def status(self) -> dict:
         return {"score": self.fixed,
                 "modalities": {"keys": self.fixed, "pointer": self.fixed},
-                "bot_flag": False, "last_input_age_s": 0.5, "ready": True,
-                "signals": {}}
+                "bot_flag": self.bot_flag, "last_input_age_s": 0.5, "ready": True,
+                "signals": self.signals}
 
     def start(self):
         return None
