@@ -68,9 +68,16 @@
     {
       "id": "cp3",
       "scene": "chatpay",
-      "at": 10.6,
-      "dur": 2.8,
+      "at": 10.4,
+      "dur": 2.6,
       "text": "Identity, typing, device, and payment history all agree"
+    },
+    {
+      "id": "cp4",
+      "scene": "chatpay",
+      "at": 14.2,
+      "dur": 3.0,
+      "text": "The money moves as a live Nessie transfer on Capital One"
     },
     {
       "id": "ve1",

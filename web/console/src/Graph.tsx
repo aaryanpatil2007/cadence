@@ -273,11 +273,22 @@ export default function GraphView() {
                 {result.decision === "allow" ? "Authorized. Transfer executed" : result.decision === "deny" ? "Denied. Money frozen" : "Step-up required"}
               </div>
               <div style={{ fontSize: 13.5, color: "var(--text-2)", marginTop: 5, lineHeight: 1.45 }}>{result.explanation}</div>
-              {result.transfer && (
-                <div style={{ fontSize: 12.5, color: "#000", marginTop: 8, fontWeight: 700 }}>
-                  ✓ Capital One Nessie transfer cleared
-                </div>
-              )}
+              {result.transfer && (() => {
+                const tr = result.transfer as { id?: string; before?: { name: string; balance: number }[]; after?: { name: string; balance: number }[] };
+                const chk = (a?: { name: string; balance: number }[]) => a?.find((x) => x.name === "checking")?.balance;
+                const b0 = chk(tr.before), b1 = chk(tr.after);
+                return (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 12.5, color: "#000", fontWeight: 700 }}>
+                      ✓ Capital One Nessie transfer cleared
+                    </div>
+                    <div className="mono" style={{ fontSize: 11.5, color: "var(--text-2)", marginTop: 3 }}>
+                      POST /transfers → 201 · id {String(tr.id || "").slice(0, 8)}
+                      {b0 != null && b1 != null ? ` · checking $${b0.toLocaleString()} → $${b1.toLocaleString()}` : ""}
+                    </div>
+                  </div>
+                );
+              })()}
               {result.challenge && (
                 <div style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8, fontWeight: 700 }}>
                   → {result.challenge}

@@ -58,7 +58,8 @@ const SCENES = {
     await say(s, "Pay my November rent, $6,000");
     await s.wait(3200);                // delivered + typing + verification card
     await s.wait(4200);                // rows check off one by one
-    await s.wait(2600);                // "Done. I sent $6,000..."
+    await s.wait(3400);                // Capital One receipt: POST /transfers, money slides
+    await s.wait(3600);                // balance ticks over, "Done. I sent $6,000..."
   }},
 
   // the ops view: same decision, shown as the graph + Claude's reasoning
