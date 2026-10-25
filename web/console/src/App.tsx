@@ -10,6 +10,7 @@ import {
   Stats, getAlerts, getAudit, getDevices, getEvents, getIdentities,
   getIntegrations, getProfiles, getStats, subscribeStream,
 } from "./api";
+import GraphView from "./Graph";
 
 const SPRING = { type: "spring", stiffness: 320, damping: 32 } as const;
 const DIMS = [
@@ -29,7 +30,7 @@ function dimSeverity(e: Event, dim: string): string {
 }
 
 export default function App() {
-  const [route, setRoute] = useState(location.hash || "#/overview");
+  const [route, setRoute] = useState(location.hash || "#/graph");
   const [events, setEvents] = useState<Event[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [identities, setIdentities] = useState<Identity[]>([]);
@@ -40,7 +41,7 @@ export default function App() {
   const [integrations, setIntegrations] = useState<Record<string, Integration> | null>(null);
 
   useEffect(() => {
-    const onHash = () => setRoute(location.hash || "#/overview");
+    const onHash = () => setRoute(location.hash || "#/graph");
     addEventListener("hashchange", onHash); return () => removeEventListener("hashchange", onHash);
   }, []);
   useEffect(() => {
@@ -50,7 +51,7 @@ export default function App() {
       (s) => setStats(s));
     return unsub;
   }, []);
-  const page = route.replace("#/", "") || "overview";
+  const page = route.replace("#/", "") || "graph";
   useEffect(() => {
     if (page === "identities") getIdentities().then(setIdentities).catch(() => {});
     if (page === "audit") getAudit().then(setAudit).catch(() => {});
@@ -66,6 +67,7 @@ export default function App() {
       <main className="flex-1 min-w-0" style={{ padding: "26px 34px" }}>
         <AnimatePresence mode="wait">
           <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={SPRING}>
+            {page === "graph" && <GraphView />}
             {page === "overview" && <Overview events={events} stats={stats} />}
             {page === "sessions" && <Sessions profiles={profiles} />}
             {page === "transactions" && <Transactions events={events} />}
@@ -83,6 +85,7 @@ export default function App() {
 
 function Sidebar({ page, alertCount }: { page: string; alertCount: number }) {
   const nav = [
+    ["graph", "Trust Graph", ShieldCheck],
     ["overview", "Overview", Activity], ["sessions", "Behavioral sessions", Fingerprint],
     ["transactions", "Transactions", ListChecks], ["alerts", "Alerts", Bell],
     ["devices", "Devices", Cpu], ["identities", "Identities", Users],
@@ -91,7 +94,7 @@ function Sidebar({ page, alertCount }: { page: string; alertCount: number }) {
   return (
     <aside style={{ width: 236, background: "var(--bg-2)", borderRight: "1px solid var(--border)" }} className="flex flex-col shrink-0">
       <div className="flex items-center gap-2.5" style={{ padding: "24px 20px 26px" }}>
-        <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: "var(--forest)" }}>
+        <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: "linear-gradient(135deg,#5b6cff,#8b5cf6)", boxShadow: "0 4px 14px -4px rgba(91,108,255,0.6)" }}>
           <ShieldCheck size={17} color="#fff" strokeWidth={2} />
         </div>
         <div><div className="display" style={{ fontSize: 17, lineHeight: 1 }}>Cadence</div>

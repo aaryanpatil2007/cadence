@@ -1,23 +1,41 @@
-# Cadence — Behavioral Proof-of-Identity for macOS
+# Cadence — Proof of Human for AI Money Agents
 
-A local daemon learns how one specific person types, moves, scrolls, and
-clicks, keeps a rolling confidence score that it's still that person at the
-keyboard, and hands out **short-lived, nonce-bound attestations signed by a
-device-bound P-256 key** (Secure Enclave). Any server-side action can require
-a fresh high-confidence attestation before proceeding.
+AI agents can move your money. Today their authority is a **static bearer
+credential** — an API key that says nothing about whether a real, specific,
+authorized human is actually behind an action. Cadence is the missing
+primitive: it binds an agent's authority to **live, revocable proof of a real
+human**, and freezes the money the instant that proof breaks.
 
-Raw behavior never leaves RAM. The server only ever sees a signed number.
+Three pieces make that proof:
 
-> Think "WebAuthn, except the authenticator keeps checking it's still you."
+1. **Identity Trust Graph** — a live graph of 12 evidence nodes across four
+   tiers: *Identity* (CRS · TransUnion bureau match, credit file, Fraud
+   Finder), *Device* (Secure Enclave key, network, location), *Presence*
+   (keystroke/pointer dynamics + session continuity from an on-device model),
+   and *Money* (Capital One Nessie recipient/amount/velocity history). Edges
+   carry corroboration; every action requires a specific subgraph to be lit.
+2. **A real Claude agent** that reasons over the graph in the open before a
+   dollar moves — allow / step-up / deny, with the exact missing evidence —
+   and executes approved transfers on Capital One (Nessie) rails.
+3. **A scoped mandate** rooted in the human: granted while identity + presence
+   are proven, auto-revoked the moment the person at the keyboard changes. A
+   hijacked session, injected prompt, or synthetic identity moves nothing.
 
-## Four attacks, one demo
+Raw behavior never leaves RAM. The server only ever sees a signed number
+(**nonce-bound JWS ES256**, device-bound P-256 key in the Secure Enclave).
+
+> Think "WebAuthn, except the authenticator keeps checking it's still you —
+> and your AI agent's power of attorney dies the moment it isn't."
+
+## Five attacks, one demo
 
 | # | Attack | What happens |
 |---|---|---|
-| T1 | Second human takes over the unlocked Mac | Score falls below 0.4 in seconds → deny + failed step-up |
-| T2 | Automation bot (pyautogui) drives the UI | Robotic-timing hard floor → score 0.02 → deny |
-| T3 | Stolen session cookie from another machine | No attestation → HTTP 401 |
-| T4 | Replayed attestation | Nonce single-use + 10 s expiry → deny |
+| T1 | Second human takes over the unlocked Mac | Presence nodes contradict → mandate auto-revokes → agent freezes money |
+| T2 | Prompt injection / out-of-mandate instruction to the agent | Graph coverage fails (new payee, high amount) → step-up only a live human can pass |
+| T3 | Synthetic identity enrolls an agent | CRS Fraud Finder contradicts → denied live against TransUnion |
+| T4 | Automation bot (pyautogui) drives the UI | Robotic-timing hard floor → score 0.02 → deny |
+| T5 | Stolen session cookie / replayed attestation | No fresh nonce-bound attestation → HTTP 401 / deny |
 
 ## Architecture
 

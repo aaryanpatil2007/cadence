@@ -47,7 +47,7 @@ def build_clip(scene: str, hold: float = 0.5) -> float:
         return total
     CLIPS.mkdir(exist_ok=True)
     vf = (f"scale={W}:{H}:force_original_aspect_ratio=decrease,"
-          f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0xf9f9f9,"
+          f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=0xfbfbfd,"
           f"fps={FPS},format=yuv420p")
     run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat),
          "-vf", vf, "-c:v", "libx264", "-crf", str(CRF), "-preset", "fast",
@@ -84,9 +84,9 @@ def main():
         d = m["dur"]
         parts = [f"[{i}:v]format=yuv420p"]
         if i > 0:
-            parts.append(f"fade=t=in:st=0:d={DIP}:color=0xf9f9f9")
+            parts.append(f"fade=t=in:st=0:d={DIP}:color=0xfbfbfd")
         # fade every clip out to the canvas (incl. the last, for a clean ending)
-        parts.append(f"fade=t=out:st={max(d - DIP, 0):.3f}:d={DIP}:color=0xf9f9f9")
+        parts.append(f"fade=t=out:st={max(d - DIP, 0):.3f}:d={DIP}:color=0xfbfbfd")
         out = f"[v{i}]"
         fc.append(",".join(parts) + out)
         labels.append(out)

@@ -192,6 +192,80 @@ def create_app(store: Store | None = None) -> FastAPI:
     def policy():
         return load_policy()
 
+    # ---------------- Identity Trust Graph + agent ----------------
+    _nessie: dict = {"client": None}
+
+    def _presence() -> dict | None:
+        import httpx
+        try:
+            r = httpx.get("http://127.0.0.1:7777/status", timeout=1.5)
+            if r.status_code == 200:
+                return r.json()
+        except Exception:
+            pass
+        return None
+
+    def _execute_nessie(amount: float, memo: str) -> dict:
+        import os
+        try:
+            from dotenv import load_dotenv
+            load_dotenv()
+        except Exception:
+            pass
+        if os.environ.get("USE_NESSIE") != "1":
+            return {"backend": "mock", "amount": amount}
+        try:
+            if _nessie["client"] is None:
+                from bank.nessie import Nessie
+                c = Nessie(os.environ["NESSIE_API_KEY"])
+                c.boot()
+                _nessie["client"] = c
+            c = _nessie["client"]
+            before = c.balances()
+            rec = c.transfer(amount, memo or "agent authorized")
+            after = c.balances()
+            return {"backend": "nessie",
+                    "id": (rec.get("objectCreated") or {}).get("_id"),
+                    "amount": amount, "before": before, "after": after}
+        except Exception as e:
+            return {"backend": "mock", "amount": amount, "error": str(e)[:160]}
+
+    @app.get("/graph/state")
+    def graph_state():
+        from . import graph as graph_mod
+        return graph_mod.build_graph(_presence())
+
+    @app.post("/graph/identity/verify")
+    def graph_identity_verify(body: dict):
+        """Light the identity tier via live CRS (TruValidate/FICO/Fraud Finder).
+        Test personas only: 'pass' -> Margaret Okafor; 'fail' -> Kayla Brennan."""
+        from . import graph as graph_mod
+        persona = "fail" if body.get("persona") == "fail" else "pass"
+        result = graph_mod.light_identity(persona)
+        db.audit("graph:identity", None, None,
+                 "ok" if result.get("verified") else "deny",
+                 f"CRS {result.get('mode')} · {result.get('name')} · "
+                 f"FICO {result.get('fico')} · fraud {result.get('fraud')}")
+        return result
+
+    @app.post("/agent/authorize")
+    def agent_authorize(body: dict):
+        from . import graph as graph_mod
+        from . import agent as agent_mod
+        amount = float(body.get("amount", 0) or 0)
+        action = {"amount": amount, "recipient": body.get("recipient", ""),
+                  "memo": body.get("memo", "")}
+        g = graph_mod.build_graph(_presence(), action)
+        decision = agent_mod.authorize(action, g)
+        transfer = _execute_nessie(amount, action["memo"]) \
+            if decision["decision"] == "allow" else None
+        db.audit("agent_authorize", None, g.get("presence_score"),
+                 decision["decision"], decision.get("explanation", ""),
+                 customer=g["mandate"]["root"], amount=amount,
+                 trust=g.get("presence_score"),
+                 factors=[n["label"] for n in g["nodes"] if n["state"] == "lit"])
+        return {"decision": decision, "graph": g, "transfer": transfer}
+
     # ---------------- Cadence Console ----------------
     @app.get("/console/events")
     def console_events(limit: int = 40):
