@@ -95,6 +95,29 @@ class Nessie:
         return [{"name": "checking", "balance": float(chk["balance"]) - moved},
                 {"name": "savings", "balance": float(sav["balance"]) + moved}]
 
+    def ledger(self, limit: int = 30) -> list[dict]:
+        """Recent transfers from Nessie's own ledger, newest first, in the
+        bank UI's activity shape."""
+        try:
+            rows = self._req("GET", f"/accounts/{self.checking_id}/transfers")
+        except Exception:
+            return []
+        out = []
+        for r in rows:
+            if r.get("status") != "completed":
+                continue
+            desc = (r.get("description") or "transfer").strip()
+            if ":" in desc:  # e.g. "to savings: november rent"
+                desc = desc.split(":", 1)[1].strip() or desc
+            out.append({"ts": None, "frm": "checking",
+                        "to": desc,
+                        "amount": float(r.get("amount", 0)),
+                        "memo": f"Agent payment · {desc}",
+                        "decision": "allow", "score": None,
+                        "reason": "agent payment · Capital One Nessie",
+                        "date": r.get("transaction_date")})
+        return list(reversed(out))[:limit]
+
     def transfer(self, amount: float, memo: str) -> dict:
         """Create a Nessie transfer record (the calhacks sandbox's
         TransferCreate takes only {transaction_date, status, amount,

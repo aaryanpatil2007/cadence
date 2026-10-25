@@ -63,7 +63,7 @@ const SCENES = {
   }},
 
   // the ops view: same decision, shown as the graph + Claude's reasoning
-  verify: { url: `${CONSOLE}/#/graph`, async fn(s) {
+  verify: { url: `${CONSOLE}/#/graph?noexec`, async fn(s) {
     await s.wait(1800);
     await s.move('text=Bureau identity', 900);
     await s.wait(1400);

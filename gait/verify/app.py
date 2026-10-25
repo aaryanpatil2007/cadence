@@ -257,8 +257,15 @@ def create_app(store: Store | None = None) -> FastAPI:
                   "memo": body.get("memo", "")}
         g = graph_mod.build_graph(_presence(), action)
         decision = agent_mod.authorize(action, g)
-        transfer = _execute_nessie(amount, action["memo"]) \
-            if decision["decision"] == "allow" else None
+        transfer = None
+        if decision["decision"] == "allow":
+            if body.get("execute", True):
+                transfer = _execute_nessie(amount, action["memo"])
+                if transfer:
+                    app.state.last_transfer = transfer
+            else:
+                # show the already-executed payment instead of moving money again
+                transfer = getattr(app.state, "last_transfer", None)
         db.audit("agent_authorize", None, g.get("presence_score"),
                  decision["decision"], decision.get("explanation", ""),
                  customer=g["mandate"]["root"], amount=amount,

@@ -51,7 +51,7 @@ export default function App() {
       (s) => setStats(s));
     return unsub;
   }, []);
-  const page = route.replace("#/", "") || "graph";
+  const page = (route.replace("#/", "").split("?")[0]) || "graph";
   useEffect(() => {
     if (page === "identities") getIdentities().then(setIdentities).catch(() => {});
     if (page === "audit") getAudit().then(setAudit).catch(() => {});

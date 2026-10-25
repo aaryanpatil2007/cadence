@@ -22,10 +22,10 @@ const sevColor = (s: string) => s === "ok" ? "var(--forest)" : s === "warn" ? "v
 const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2 });
 
 const RECIPIENTS = [
-  { name: "Savings", sub: "Meridian · ••4021", initial: "SV", known: true },
+  { name: "Savings", sub: "Capital One · ••4021", initial: "SV", known: true },
   { name: "Elena Castellanos", sub: "Chase · ••7788", initial: "EC", known: true },
   { name: "Northwind Properties", sub: "rent · ••1140", initial: "NP", known: true },
-  { name: "Daniel Whitfield", sub: "Meridian · ••9032", initial: "DW", known: true },
+  { name: "Daniel Whitfield", sub: "Capital One · ••9032", initial: "DW", known: true },
 ];
 
 function deviceFingerprint(): string {
@@ -111,9 +111,9 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bone)" }}>
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={SPRING} className="text-center" style={{ maxWidth: 580 }}>
-          <div className="label mb-7" style={{ letterSpacing: "0.12em" }}>Meridian · private banking</div>
+          <div className="label mb-7" style={{ letterSpacing: "0.12em" }}>Capital One · digital banking</div>
           <h1 className="display" style={{ fontSize: 56, lineHeight: 1.06 }}>The account<br />only you can use.</h1>
-          <p style={{ fontSize: 18, color: "var(--muted)", marginTop: 18, lineHeight: 1.5 }}>Meridian verifies every payment by how you type and move. A stolen password, device, or session moves nothing.</p>
+          <p style={{ fontSize: 18, color: "var(--muted)", marginTop: 18, lineHeight: 1.5 }}>Capital One verifies every payment by how you type and move. A stolen password, device, or session moves nothing.</p>
           <button onClick={login} className="pill mt-8" style={{ padding: "13px 34px", fontSize: 16 }}>Sign in</button>
         </motion.div>
       </div>
@@ -130,7 +130,7 @@ export default function App() {
       <aside className="flex flex-col shrink-0" style={{ width: 236, background: "var(--paper)", borderRight: "1px solid var(--line)" }}>
         <div className="flex items-center gap-2.5" style={{ padding: "24px 22px 24px" }}>
           <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: "var(--ink)" }}><Landmark size={16} color="#fff" strokeWidth={2} /></div>
-          <span className="display" style={{ fontSize: 19 }}>Meridian</span>
+          <span className="display" style={{ fontSize: 19 }}>Capital One</span>
         </div>
         <nav className="flex flex-col gap-0.5 px-3">
           {nav.map(([id, label, Icon]) => { const a = view === id; return (
@@ -208,7 +208,7 @@ function Onboarding({ onDone, identity, login }: { onDone: () => void; identity:
   const doTrain = async () => { for (let p = 0; p <= 100; p += 4) { setTrainPct(p); await new Promise((r) => setTimeout(r, 55)); } setTrainPct(100); setTimeout(() => setStep(3), 600); };
   return (
     <div className="min-h-screen flex flex-col items-center" style={{ background: "var(--bone)", paddingTop: 72 }}>
-      <div className="label mb-6" style={{ letterSpacing: "0.12em" }}>Meridian · open an account</div>
+      <div className="label mb-6" style={{ letterSpacing: "0.12em" }}>Capital One · open an account</div>
       <div className="flex items-center gap-2 mb-10">
         {steps.map((s, i) => (<div key={s} className="flex items-center gap-2">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={{ border: `1px solid ${i <= step ? "var(--ink)" : "var(--line)"}`, color: i <= step ? "var(--ink)" : "var(--muted)" }}>
@@ -227,7 +227,7 @@ function Onboarding({ onDone, identity, login }: { onDone: () => void; identity:
           </>)}
           {step === 1 && (<>
             <Landmark size={26} color="var(--forest)" /><h2 className="display" style={{ fontSize: 24, marginTop: 14 }}>Link your bank</h2>
-            <p style={{ fontSize: 14.5, color: "var(--muted)", marginTop: 6 }}>Connect your accounts securely through Capital One. Meridian never sees your login.</p>
+            <p style={{ fontSize: 14.5, color: "var(--muted)", marginTop: 6 }}>Connected through the Nessie API. Your credentials never leave Capital One.</p>
             <div className="mt-5 field flex items-center gap-3" style={{ padding: "14px 16px" }}>
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "var(--elevated)" }}><CreditCard size={17} /></div>
               <div><div style={{ fontSize: 15 }}>Capital One</div><div style={{ fontSize: 12.5, color: "var(--muted)" }}>Checking + Savings</div></div>
@@ -246,7 +246,7 @@ function Onboarding({ onDone, identity, login }: { onDone: () => void; identity:
             <div className="mx-auto w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--forest) 12%, transparent)" }}><Check size={28} color="var(--forest)" /></div>
             <h2 className="display" style={{ fontSize: 24, marginTop: 16 }}>You're protected.</h2>
             <p style={{ fontSize: 14.5, color: "var(--muted)", marginTop: 6 }}>Identity verified, bank linked, behavioral model trained. Every payment is now scored by how you bank.</p>
-            <button onClick={onDone} className="pill mt-7" style={{ padding: "12px 28px", fontSize: 15 }}>Enter Meridian</button></div>)}
+            <button onClick={onDone} className="pill mt-7" style={{ padding: "12px 28px", fontSize: 15 }}>Enter Capital One</button></div>)}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -280,7 +280,7 @@ function BalanceCard({ name, sub, value }: { name: string; sub: string; value: n
 }
 function CardVisual({ name }: { name: string }) {
   return (<div className="rounded-2xl flex flex-col justify-between" style={{ padding: 22, background: "var(--ink)", color: "#fff", minHeight: 150 }}>
-    <div className="flex items-center justify-between"><span style={{ fontSize: 14, opacity: 0.8 }}>Meridian</span><CreditCard size={20} /></div>
+    <div className="flex items-center justify-between"><span style={{ fontSize: 14, opacity: 0.8 }}>Capital One</span><CreditCard size={20} /></div>
     <div><div className="mono" style={{ fontSize: 16, letterSpacing: "0.12em" }}>•••• •••• •••• 2213</div>
       <div className="flex items-center justify-between mt-2" style={{ fontSize: 12, opacity: 0.8 }}><span>{name}</span><span>12 / 28</span></div></div></div>);
 }

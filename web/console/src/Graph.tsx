@@ -88,7 +88,7 @@ export default function GraphView() {
     try {
       const r = await fetch("/agent/authorize", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Number(amount) || 0, recipient, memo: recipient }),
+        body: JSON.stringify({ amount: Number(amount) || 0, recipient, memo: recipient, execute: !location.hash.includes("noexec") }),
       });
       const body = await r.json();
       const res: AgentResult = { ...(body.decision || body), transfer: body.transfer ?? null };

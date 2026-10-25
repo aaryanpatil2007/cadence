@@ -164,9 +164,11 @@ def create_app(db_path: Path | None = None, verifier_url: str = VERIFIER_URL) ->
         rows = db.execute(
             "SELECT ts, frm, to_, amount, memo, decision, score, reason "
             "FROM transfers ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
-        return {"transfers": [
-            dict(ts=r[0], frm=r[1], to=r[2], amount=r[3], memo=r[4],
-                 decision=r[5], score=r[6], reason=r[7]) for r in rows]}
+        local = [dict(ts=r[0], frm=r[1], to=r[2], amount=r[3], memo=r[4],
+                      decision=r[5], score=r[6], reason=r[7]) for r in rows]
+        # agent payments live in Nessie's ledger, not the local table
+        led = nessie.ledger(limit) if nessie is not None else []
+        return {"transfers": (led + local)[:limit]}
 
     if BANK_DIST.exists():
         app.mount("/", StaticFiles(directory=BANK_DIST, html=True), name="web")
