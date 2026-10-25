@@ -48,6 +48,37 @@ of {scratch, pretrained-frozen, pretrained-finetuned} on *your* data. The
 pointer model can pull population negatives from the
 [Balabit mouse dynamics dataset](https://github.com/balabit/Mouse-Dynamics-Challenge).
 
+## Sponsor integrations (all live, all sandboxed)
+
+Cadence fuses **four signals** into one trust decision. Behavior (above) is the
+first; the other three run on sponsor APIs, and the trust score is only as good
+as the regulated data underneath it — these are load-bearing, not bolt-ons.
+
+**CRS — Financial Intelligence (StitchCredit sandbox, `api-sandbox.stitchcredit.com`)**
+Powers the **Identity** signal and the high-value step-up rung:
+- **TruValidate IDV** (`/transunion/identity-manager-verification/basic`) — identity
+  verification at onboarding and before high-value payments.
+- **Credit report, TU prequal FICO 9** (`/transunion/credit-report/standard/tu-prequal-fico9`)
+  — pulled live to risk-tier the account.
+- **Fraud Finder** (`/fraud-finder/fraud-finder`) — synthetic-identity scoring.
+
+The demo's climax is TransUnion **rejecting a synthetic identity live**. We send
+**only CRS's provided test personas** — P01 *Margaret Okafor* (pass, FICO 790,
+fraud 11) and P13 *Kayla Brennan* (synthetic, FICO 640, fraud 88) — never a real
+identity. Creds live in `.env` (gitignored). Note: the sandbox account latches
+after a failed login, so authenticate cleanly.
+
+**Capital One — Nessie (`api.nessieisreal.com`)**
+Powers the real bank underneath Meridian and the **Transaction-anomaly** signal:
+- Real customer + checking/savings accounts created via the API.
+- Every payment is a real Nessie **transfer**; balances are derived from the
+  transfer ledger, never faked client-side.
+- That transaction history feeds the fourth signal (amount/recipient/velocity
+  anomaly) that the fusion engine weighs alongside behavior and identity.
+
+Live status for all four (plus Secure Enclave) is visible in the Console's
+**Integrations** view at `:7800/#/integrations`.
+
 ## Beyond the bank: Cadence as an authorization rail
 
 - `scripts/gait-exec -- <command>` — any shell command gated by a fresh
@@ -106,6 +137,7 @@ registers the device key with the verifier. Results land in
 - `gait/attest` — compact JWS ES256; Secure Enclave CLI wrapper + software fallback
 - `gait/daemon` — scoring daemon :7777 (loopback), enrollment, step-up
 - `gait/verify` — verifier :7800 (nonce, signature, replay, policy, audit)
-- `bank/` — demo bank :7900 (mock ledger; Nessie behind `USE_NESSIE=1`)
+- `bank/` — Meridian bank :7900 (real Capital One Nessie transfers + ledger)
+- `gait/verify/crs.py` — CRS TruValidate IDV, credit report, Fraud Finder (test personas only)
 - `web/` — dashboard+enroll and bank UIs (Vite + React)
 - `swift/gait-sign` — Secure Enclave P-256 keygen/sign CLI
