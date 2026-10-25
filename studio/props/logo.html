@@ -2,38 +2,29 @@
 <html>
 <head><meta charset="utf-8" />
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Geist:wght@600&display=swap');
-  html,body{margin:0;height:100%;background:#fbfbfd;overflow:hidden}
-  .wrap{height:100vh;display:flex;align-items:center;justify-content:center;gap:18px}
-  .logo{display:flex;align-items:center;gap:17px;opacity:0;transform:translateY(8px)}
-  .badge{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(135deg,#5b6cff,#8b5cf6);box-shadow:0 10px 36px -8px rgba(91,108,255,.55)}
-  .badge svg{width:29px;height:29px}
-  .word{font-family:'Geist',system-ui,sans-serif;font-weight:600;font-size:52px;color:#0a0b0c;
-    letter-spacing:-.025em}
-  .glow{position:fixed;inset:0;background:radial-gradient(620px 420px at 50% 48%, rgba(91,108,255,.13), transparent 62%);opacity:0}
+  @import url('https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@800&display=swap');
+  html,body{margin:0;height:100%;background:#ffffff;overflow:hidden}
+  .wrap{height:100vh;display:flex;align-items:center;justify-content:center}
+  .logo{display:flex;align-items:center;gap:20px;opacity:0}
+  .badge{width:58px;height:58px;display:flex;align-items:center;justify-content:center;background:#000}
+  .badge .sq{width:16px;height:16px;background:#c90000}
+  .word{font-family:'Host Grotesk',Arial,sans-serif;font-weight:800;font-size:56px;color:#000;
+    letter-spacing:-.035em}
 </style></head>
 <body>
-  <div class="glow" id="glow"></div>
   <div class="wrap">
     <div class="logo" id="logo">
-      <div class="badge">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-      </div>
+      <div class="badge"><div class="sq"></div></div>
       <div class="word">Cadence</div>
     </div>
   </div>
 <script>
   window.__play = () => {
-    const logo = document.getElementById('logo'), glow = document.getElementById('glow');
+    const logo = document.getElementById('logo');
     const t0 = performance.now();
-    function ease(t){return 1-Math.pow(1-t,3);}
     (function loop(now){
-      const t = Math.min((now-t0)/900, 1), e = ease(t);
-      logo.style.opacity = String(e);
-      logo.style.transform = 'translateY(' + (8*(1-e)) + 'px)';
-      glow.style.opacity = String(e*0.9);
+      const t = Math.min((now-t0)/500, 1);
+      logo.style.opacity = String(t);
       if(t<1) requestAnimationFrame(loop);
     })(t0);
   };

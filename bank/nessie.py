@@ -64,10 +64,10 @@ class Nessie:
         cid = cust["_id"]
         self.checking_id = self._req("POST", f"/customers/{cid}/accounts", {
             "type": "Checking", "nickname": "gait-checking",
-            "rewards": 0, "balance": 12500})["objectCreated"]["_id"]
+            "rewards": 0, "balance": 18500})["objectCreated"]["_id"]
         self.savings_id = self._req("POST", f"/customers/{cid}/accounts", {
             "type": "Savings", "nickname": "gait-savings",
-            "rewards": 0, "balance": 48200})["objectCreated"]["_id"]
+            "rewards": 0, "balance": 42200})["objectCreated"]["_id"]
         STATE.parent.mkdir(parents=True, exist_ok=True)
         STATE.write_text(json.dumps({
             "customer_id": cid,

@@ -330,6 +330,15 @@ def create_app(store: Store | None = None) -> FastAPI:
                 await asyncio.sleep(1.0)
         return EventSourceResponse(gen())
 
+    # Consumer-side demo surface: a personal agent chat that calls the same
+    # /agent/authorize API (same origin, so no CORS)
+    assistant = REPO_ROOT / "web" / "assistant.html"
+    if assistant.exists():
+        @app.get("/assistant")
+        def assistant_page():
+            from fastapi.responses import FileResponse
+            return FileResponse(assistant)
+
     # Cadence Console SPA (same origin as the API, so no CORS for console reads)
     if CONSOLE_DIST.exists():
         app.mount("/", StaticFiles(directory=CONSOLE_DIST, html=True), name="console")

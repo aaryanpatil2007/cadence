@@ -118,7 +118,7 @@ def main():
             f"fade=t=out:st={end - fout:.2f}:d={fout}:alpha=1{faded}")
         out = f"[v{i}]"
         cap_filters.append(
-            f"{prev}{faded}overlay=(W-w)/2:H-h-96:enable='between(t,{start:.2f},{end:.2f})'{out}")
+            f"{prev}{faded}overlay=(W-w)/2:H-h-132:enable='between(t,{start:.2f},{end:.2f})'{out}")
         prev = out
     capped = OUT / "capped.mp4"
     if caps:

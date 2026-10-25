@@ -3,79 +3,64 @@
 <head>
 <meta charset="utf-8" />
 <title>Cadence</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;700;800&display=swap" />
 <style>
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; }
   body {
-    background:
-      radial-gradient(1200px 700px at 50% -16%, rgba(110,123,255,0.20), transparent 62%),
-      radial-gradient(900px 600px at 90% 115%, rgba(139,92,246,0.13), transparent 60%),
-      radial-gradient(760px 520px at -10% 70%, rgba(61,214,180,0.08), transparent 58%),
-      #fbfbfd;
-    color: #0c0e1d;
-    font-family: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: #fff; color: #000;
+    font-family: "Host Grotesk", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
-    display: grid; place-items: center; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 7vw; overflow: hidden;
   }
-  .wrap { text-align: center; max-width: 1060px; padding: 0 48px; }
   .eyebrow {
-    display: inline-flex; align-items: center; gap: 10px;
-    font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600;
-    color: rgba(12,14,29,0.55);
-    border: 1px solid rgba(14,18,48,0.12); border-radius: 9999px; padding: 8px 18px;
-    background: rgba(255,255,255,0.7); backdrop-filter: blur(10px);
-    opacity: 0; transform: translateY(14px);
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700;
+    opacity: 0;
   }
-  .eyebrow .dot { width: 8px; height: 8px; border-radius: 99px; background: linear-gradient(135deg,#5b6cff,#8b5cf6); box-shadow: 0 0 12px rgba(91,108,255,0.7); }
+  .eyebrow .sq { width: 10px; height: 10px; background: #c90000; }
   h1 {
-    margin-top: 34px; font-size: 84px; line-height: 1.04; font-weight: 600; letter-spacing: -0.035em;
-    text-wrap: balance;
+    margin-top: 30px; font-size: 108px; line-height: 0.97; font-weight: 800;
+    letter-spacing: -0.035em; max-width: 15ch;
   }
-  h1 .line { display: block; opacity: 0; transform: translateY(26px); }
-  h1 .grad {
-    background: linear-gradient(100deg, #5b6cff 10%, #8b5cf6 55%, #b05bf6 90%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
+  h1 .line { display: block; opacity: 0; }
   .sub {
-    margin: 30px auto 0; max-width: 760px; font-size: 21px; line-height: 1.55;
-    color: rgba(12,14,29,0.58); opacity: 0; transform: translateY(18px);
+    margin-top: 34px; max-width: 62ch; font-size: 20px; line-height: 1.5;
+    color: rgba(0,0,0,0.62); opacity: 0; font-weight: 400;
   }
-  .chips { margin-top: 42px; display: flex; gap: 12px; justify-content: center; opacity: 0; transform: translateY(16px); }
-  .chip {
-    font-family: "Geist Mono", ui-monospace, monospace; font-size: 13px;
-    padding: 9px 18px; border-radius: 9999px; color: rgba(12,14,29,0.72);
-    border: 1px solid rgba(14,18,48,0.12); background: rgba(255,255,255,0.75); backdrop-filter: blur(8px);
-    display: inline-flex; align-items: center; gap: 9px;
+  .rail {
+    margin-top: 52px; display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 2px solid #000; opacity: 0;
   }
-  .chip .d { width: 7px; height: 7px; border-radius: 99px; }
-  .in { animation: rise 0.85s cubic-bezier(0.22,1,0.36,1) forwards; }
-  @keyframes rise { to { opacity: 1; transform: none; } }
+  .rail div { padding: 12px 14px 0 0; font-size: 13px; }
+  .rail div + div { padding-left: 14px; border-left: 1px solid #000; }
+  .rail b { display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px; }
+  .rail b i { font-style: normal; color: #c90000; margin-right: 6px; }
+  .in { animation: rise 0.5s linear forwards; }
+  @keyframes rise { to { opacity: 1; } }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="eyebrow" id="e"><span class="dot"></span> Cadence — continuous proof of human</div>
-    <h1>
-      <span class="line" id="l1">AI agents can move your money.</span>
-      <span class="line" id="l2"><span class="grad">Nothing proves a human said so.</span></span>
-      <span class="line" id="l3">Until now.</span>
-    </h1>
-    <p class="sub" id="s">
-      Cadence binds every agent action to live, revocable proof that a real, verified
-      human is behind it — bureau identity from CRS, money on Capital One rails,
-      presence from how you type and move, sealed by the Secure&nbsp;Enclave.
-    </p>
-    <div class="chips" id="c">
-      <span class="chip"><span class="d" style="background:#5b6cff"></span>CRS · TransUnion</span>
-      <span class="chip"><span class="d" style="background:#e08700"></span>Capital One · Nessie</span>
-      <span class="chip"><span class="d" style="background:#8b5cf6"></span>Apple Secure Enclave</span>
-      <span class="chip"><span class="d" style="background:#0eb87a"></span>On-device model · 136M keystrokes</span>
-    </div>
+  <div class="eyebrow" id="e"><span class="sq"></span> Cadence · continuous proof of human</div>
+  <h1>
+    <span class="line" id="l1">Your agent can move money.</span>
+    <span class="line" id="l2">Cadence proves you said so.</span>
+  </h1>
+  <p class="sub" id="s">
+    Every action an AI agent takes with your money is checked against live
+    evidence that a real, verified human is behind it. When that proof breaks,
+    the money stops.
+  </p>
+  <div class="rail" id="r">
+    <div><b><i>01</i>Identity</b>CRS · TransUnion, live</div>
+    <div><b><i>02</i>Device</b>Apple Secure Enclave</div>
+    <div><b><i>03</i>Presence</b>on-device model, 136M keystrokes</div>
+    <div><b><i>04</i>Money</b>Capital One · Nessie ledger</div>
   </div>
   <script>
     window.__play = () => {
-      const seq = [["e",0],["l1",220],["l2",520],["l3",860],["s",1180],["c",1480]];
+      const seq = [["e",0],["l1",250],["l2",650],["s",1050],["r",1450]];
       for (const [id, t] of seq) setTimeout(() => document.getElementById(id).classList.add("in"), t);
     };
   </script>

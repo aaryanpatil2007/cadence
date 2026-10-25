@@ -94,7 +94,7 @@ function Sidebar({ page, alertCount }: { page: string; alertCount: number }) {
   return (
     <aside style={{ width: 236, background: "var(--bg-2)", borderRight: "1px solid var(--border)" }} className="flex flex-col shrink-0">
       <div className="flex items-center gap-2.5" style={{ padding: "24px 20px 26px" }}>
-        <div className="w-8 h-8 rounded-[10px] flex items-center justify-center" style={{ background: "linear-gradient(135deg,#5b6cff,#8b5cf6)", boxShadow: "0 4px 14px -4px rgba(91,108,255,0.6)" }}>
+        <div className="w-8 h-8 flex items-center justify-center" style={{ background: "#000", borderRadius: 0 }}>
           <ShieldCheck size={17} color="#fff" strokeWidth={2} />
         </div>
         <div><div className="display" style={{ fontSize: 17, lineHeight: 1 }}>Cadence</div>

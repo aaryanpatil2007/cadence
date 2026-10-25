@@ -4,7 +4,7 @@
       "name": "logo",
       "head": 0.0,
       "tail": 0.0,
-      "hold": 1.4
+      "hold": 1.3
     },
     {
       "name": "landing",
@@ -13,34 +13,34 @@
       "hold": 3.0
     },
     {
-      "name": "mandate",
-      "head": 0.6,
+      "name": "chatpay",
+      "head": 0.5,
       "tail": 0.1,
-      "hold": 1.3
+      "hold": 1.6
     },
     {
-      "name": "authorize",
-      "head": 0.6,
+      "name": "verify",
+      "head": 0.5,
       "tail": 0.1,
       "hold": 1.5
     },
     {
-      "name": "hijack",
-      "head": 0.6,
+      "name": "chathijack",
+      "head": 0.5,
       "tail": 0.1,
-      "hold": 1.4
+      "hold": 1.6
     },
     {
-      "name": "synthetic",
-      "head": 0.6,
+      "name": "freeze",
+      "head": 0.5,
       "tail": 0.1,
-      "hold": 1.4
+      "hold": 1.5
     },
     {
       "name": "money",
-      "head": 0.6,
+      "head": 0.5,
       "tail": 0.1,
-      "hold": 1.2
+      "hold": 1.3
     },
     {
       "name": "close",
@@ -49,98 +49,98 @@
       "hold": 2.2
     }
   ],
-  "transition": 0.35,
+  "transition": 0.3,
   "captions": [
     {
-      "id": "ma1",
-      "scene": "mandate",
+      "id": "cp1",
+      "scene": "chatpay",
       "at": 1.0,
       "dur": 2.8,
-      "text": "Every agent action needs a human behind it"
+      "text": "She texts her agent to pay the rent"
     },
     {
-      "id": "ma2",
-      "scene": "mandate",
-      "at": 4.6,
-      "dur": 3.0,
-      "text": "Margaret proves she's real \u2014 CRS \u00b7 TransUnion, live"
-    },
-    {
-      "id": "ma3",
-      "scene": "mandate",
-      "at": 8.6,
-      "dur": 2.8,
-      "text": "A scoped mandate, rooted in a verified human"
-    },
-    {
-      "id": "au1",
-      "scene": "authorize",
-      "at": 0.8,
-      "dur": 2.6,
-      "text": "She delegates: pay rent \u2014 $6,000"
-    },
-    {
-      "id": "au2",
-      "scene": "authorize",
-      "at": 4.6,
-      "dur": 2.8,
-      "text": "Claude reasons over the trust graph before a dollar moves"
-    },
-    {
-      "id": "au3",
-      "scene": "authorize",
-      "at": 8.8,
-      "dur": 2.8,
-      "text": "Executed \u2014 a real Capital One transfer"
-    },
-    {
-      "id": "hi1",
-      "scene": "hijack",
-      "at": 2.2,
-      "dur": 2.5,
-      "text": "Someone else takes the keyboard"
-    },
-    {
-      "id": "hi2",
-      "scene": "hijack",
+      "id": "cp2",
+      "scene": "chatpay",
       "at": 5.2,
-      "dur": 2.8,
-      "text": "Presence collapses \u2014 the mandate auto-revokes"
-    },
-    {
-      "id": "hi3",
-      "scene": "hijack",
-      "at": 9.6,
-      "dur": 2.8,
-      "text": "Frozen. A stolen session moves nothing"
-    },
-    {
-      "id": "sy1",
-      "scene": "synthetic",
-      "at": 0.9,
-      "dur": 2.6,
-      "text": "A synthetic identity tries the same"
-    },
-    {
-      "id": "sy2",
-      "scene": "synthetic",
-      "at": 4.8,
       "dur": 3.0,
-      "text": "Fraud Finder contradicts \u2014 rejected live \u00b7 CRS \u00b7 TransUnion"
+      "text": "Before a dollar moves, it checks that she is really the one asking"
+    },
+    {
+      "id": "cp3",
+      "scene": "chatpay",
+      "at": 10.6,
+      "dur": 2.8,
+      "text": "Identity, typing, device, and payment history all agree"
+    },
+    {
+      "id": "ve1",
+      "scene": "verify",
+      "at": 0.9,
+      "dur": 2.8,
+      "text": "Under the hood: twelve pieces of evidence from four sources"
+    },
+    {
+      "id": "ve2",
+      "scene": "verify",
+      "at": 4.4,
+      "dur": 3.0,
+      "text": "Identity checked against TransUnion, live through CRS"
+    },
+    {
+      "id": "ve3",
+      "scene": "verify",
+      "at": 8.4,
+      "dur": 2.8,
+      "text": "Policy makes the call. Claude explains it"
+    },
+    {
+      "id": "ve4",
+      "scene": "verify",
+      "at": 12.0,
+      "dur": 2.8,
+      "text": "The transfer clears on real Capital One rails"
+    },
+    {
+      "id": "ch1",
+      "scene": "chathijack",
+      "at": 1.2,
+      "dur": 2.6,
+      "text": "Now someone else picks up her unlocked Mac"
+    },
+    {
+      "id": "ch2",
+      "scene": "chathijack",
+      "at": 5.4,
+      "dur": 2.8,
+      "text": "The typing is wrong, so the agent refuses to send anything"
+    },
+    {
+      "id": "fr1",
+      "scene": "freeze",
+      "at": 1.0,
+      "dur": 2.8,
+      "text": "Her mandate revokes itself in seconds"
+    },
+    {
+      "id": "fr2",
+      "scene": "freeze",
+      "at": 6.4,
+      "dur": 3.0,
+      "text": "A fake identity fails the same way: TransUnion says no"
     },
     {
       "id": "mo1",
       "scene": "money",
-      "at": 0.8,
+      "at": 3.6,
       "dur": 2.8,
-      "text": "The money the agent moved \u2014 real Capital One rails"
+      "text": "The ledger is real. Every payment is a Capital One transfer"
     },
     {
       "id": "cl1",
       "scene": "close",
       "at": 1.0,
       "dur": 3.2,
-      "text": "Cadence \u2014 proof of human for the agent economy"
+      "text": "Cadence. Agents move money only when a human is proven"
     }
   ]
 }
