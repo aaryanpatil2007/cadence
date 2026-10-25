@@ -85,8 +85,10 @@ const SCENES = {
   freeze: { url: `${CONSOLE}/#/graph`, async fn(s) {
     await s.wait(3600);                // FROZEN core, red presence tier, mandate revoked
     await setScore(0.95);
-    await identity("fail");            // Kayla Brennan, CRS test persona
-    await s.wait(3800);                // Fraud Finder contradicts on camera
+    await s.wait(1400);                // presence recovers; new person enrolls
+    await s.evaluate(() => window.__verifyIdentity("fail"));   // visible CRS check: Kayla
+    await s.wait(4600);                // overlay: querying the bureau -> graph flips red
+    await s.wait(1200);
     await fill(s, 'input[aria-label="amount"]', "6000");
     await fill(s, 'input[aria-label="recipient"]', "equipment");
     await s.click('button:has-text("Authorize")', 700);

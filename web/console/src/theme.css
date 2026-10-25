@@ -68,6 +68,8 @@ body {
 
 @keyframes riseIn { from { opacity: 0; } to { opacity: 1; } }
 .rise { animation: riseIn 0.2s linear both; }
+@keyframes vfill { from { width: 5%; } to { width: 86%; } }
+.vbar { animation: vfill 2.3s linear forwards; }
 @keyframes redBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 @media (prefers-reduced-motion: reduce) {

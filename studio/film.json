@@ -125,15 +125,22 @@
       "id": "fr1",
       "scene": "freeze",
       "at": 1.0,
-      "dur": 2.8,
+      "dur": 2.6,
       "text": "Her mandate revokes itself in seconds"
     },
     {
       "id": "fr2",
       "scene": "freeze",
-      "at": 6.4,
+      "at": 5.4,
       "dur": 3.0,
-      "text": "A fake identity fails the same way: TransUnion says no"
+      "text": "Now a synthetic identity enrolls: Kayla Brennan"
+    },
+    {
+      "id": "fr3",
+      "scene": "freeze",
+      "at": 9.4,
+      "dur": 2.8,
+      "text": "TransUnion checks her file, live through CRS, and says no"
     },
     {
       "id": "mo1",

@@ -68,6 +68,7 @@ export default function GraphView() {
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState<string[]>([]);
   const [result, setResult] = useState<AgentResult | null>(null);
+  const [checking, setChecking] = useState<{ name: string; done: boolean } | null>(null);
   const timers = useRef<number[]>([]);
 
   useEffect(() => {
@@ -76,6 +77,25 @@ export default function GraphView() {
       fetch("/graph/state").then((r) => r.json()).then((g) => { if (ok && g.nodes) { setGraph(g); setLive(true); } }).catch(() => {});
     tick();
     const h = setInterval(tick, 1600);
+    // demo hook: run an identity verification visibly (overlay), then let the
+    // graph poll pick up the new node states
+    (window as unknown as { __verifyIdentity?: (p: string) => void }).__verifyIdentity = async (persona: string) => {
+      const name = persona === "fail" ? "Kayla Brennan" : "Margaret Okafor";
+      setChecking({ name, done: false });
+      const t0 = Date.now();
+      try {
+        await fetch("/graph/identity/verify", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ persona }),
+        });
+      } catch { /* overlay still resolves */ }
+      // let the bar be seen even when the call is fast
+      window.setTimeout(() => {
+        setChecking({ name, done: true });
+        tick();
+        window.setTimeout(() => setChecking(null), 1900);
+      }, Math.max(0, 2300 - (Date.now() - t0)));
+    };
     return () => { ok = false; clearInterval(h); timers.current.forEach(clearTimeout); };
   }, []);
 
@@ -185,6 +205,33 @@ export default function GraphView() {
             );
           })}
         </svg>
+
+        {checking && (
+          <div style={{
+            position: "absolute", inset: 0, display: "grid", placeItems: "center",
+            background: "rgba(255,255,255,0.82)", zIndex: 5,
+          }}>
+            <div className="rise" style={{ background: "#fff", border: "2px solid #000", padding: "22px 26px", width: 420 }}>
+              <div className="label" style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                <span style={{ width: 9, height: 9, background: "var(--accent)" }} />
+                CRS · TransUnion · identity verification
+              </div>
+              <div className="display" style={{ fontSize: 26, marginTop: 10 }}>{checking.name}</div>
+              <div style={{ fontSize: 13, color: "var(--text-2)", marginTop: 4 }}>
+                TruValidate identity · credit file (FICO 9) · Fraud Finder
+              </div>
+              <div style={{ marginTop: 14, height: 5, background: "#f0f0f0", overflow: "hidden" }}>
+                <div className={checking.done ? undefined : "vbar"} style={{
+                  height: "100%", background: "#000",
+                  ...(checking.done ? { width: "100%", transition: "width 0.3s linear" } : {}),
+                }} />
+              </div>
+              <div className="mono" style={{ fontSize: 11.5, marginTop: 7, color: checking.done ? "#000" : "var(--muted)" }}>
+                {checking.done ? "bureau response received · updating graph" : "querying the bureau, live"}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* tier index rail */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", borderTop: "2px solid #000", marginTop: 6 }}>
