@@ -1,34 +1,186 @@
 {
   "scenes": [
-    { "name": "logo",         "head": 0.0, "tail": 0.0, "hold": 1.5 },
-    { "name": "onboard",      "head": 0.3, "tail": 0.1, "hold": 1.4 },
-    { "name": "pay",          "head": 0.3, "tail": 0.1, "hold": 1.4 },
-    { "name": "monitor",      "head": 0.3, "tail": 0.1, "hold": 1.2 },
-    { "name": "console",      "head": 0.3, "tail": 0.1, "hold": 1.0 },
-    { "name": "sessions",     "head": 0.3, "tail": 0.1, "hold": 1.4 },
-    { "name": "integrations", "head": 0.3, "tail": 0.1, "hold": 1.4 },
-    { "name": "fraud",        "head": 0.3, "tail": 0.1, "hold": 1.4 },
-    { "name": "crs",          "head": 0.3, "tail": 0.1, "hold": 1.6 },
-    { "name": "close",        "head": 0.3, "tail": 0.0, "hold": 2.0 }
+    {
+      "name": "logo",
+      "head": 0.0,
+      "tail": 0.0,
+      "hold": 1.5
+    },
+    {
+      "name": "onboard",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.4
+    },
+    {
+      "name": "pay",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.4
+    },
+    {
+      "name": "monitor",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.2
+    },
+    {
+      "name": "console",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.0
+    },
+    {
+      "name": "sessions",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.4
+    },
+    {
+      "name": "integrations",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.4
+    },
+    {
+      "name": "fraud",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.4
+    },
+    {
+      "name": "crs",
+      "head": 0.6,
+      "tail": 0.1,
+      "hold": 1.6
+    },
+    {
+      "name": "close",
+      "head": 0.6,
+      "tail": 0.0,
+      "hold": 2.0
+    }
   ],
   "transition": 0.35,
   "captions": [
-    { "id": "ob1",    "scene": "onboard", "at": 0.8,  "dur": 2.8, "text": "Bureau-verified identity · CRS · TransUnion" },
-    { "id": "ob2",    "scene": "onboard", "at": 4.9,  "dur": 2.6, "text": "Linked to a real bank · Capital One" },
-    { "id": "ob3",    "scene": "onboard", "at": 8.3,  "dur": 2.6, "text": "A behavioral model that's yours alone" },
-    { "id": "pay1",   "scene": "pay",     "at": 0.6,  "dur": 2.6, "text": "Every payment is scored before it clears" },
-    { "id": "pay2",   "scene": "pay",     "at": 8.4,  "dur": 2.6, "text": "Approved — four signals clear · Capital One live" },
-    { "id": "mon1",   "scene": "monitor", "at": 0.6,  "dur": 2.8, "text": "Our own model — pretrained on 136M keystrokes, on-device" },
-    { "id": "mon2",   "scene": "monitor", "at": 4.2,  "dur": 2.4, "text": "It recognizes you by how you type and move" },
-    { "id": "mon3",   "scene": "monitor", "at": 7.6,  "dur": 2.8, "text": "The instant someone else takes over, it knows" },
-    { "id": "con1",   "scene": "console", "at": 0.7,  "dur": 2.8, "text": "One platform · every money movement, scored" },
-    { "id": "ses1",   "scene": "sessions","at": 0.7,  "dur": 2.8, "text": "It learns each user — and catches takeovers" },
-    { "id": "ses2",   "scene": "sessions","at": 4.6,  "dur": 2.8, "text": "Confidence collapses the moment the typist changes" },
-    { "id": "int1",   "scene": "integrations", "at": 0.7, "dur": 2.8, "text": "Built on regulated data · Capital One + CRS, live" },
-    { "id": "fr1",    "scene": "fraud",   "at": 0.6,  "dur": 2.6, "text": "Someone else at the keyboard" },
-    { "id": "fr2",    "scene": "fraud",   "at": 5.4,  "dur": 2.4, "text": "Blocked — behavior doesn't match" },
-    { "id": "crs1",   "scene": "crs",     "at": 0.6,  "dur": 2.6, "text": "High value? Verified against the bureau" },
-    { "id": "crs2",   "scene": "crs",     "at": 7.2,  "dur": 2.8, "text": "A synthetic identity, rejected live · TransUnion" },
-    { "id": "cl1",    "scene": "close",   "at": 0.8,  "dur": 3.0, "text": "Cadence — continuous trust for every action" }
+    {
+      "id": "ob1",
+      "scene": "onboard",
+      "at": 0.8,
+      "dur": 2.8,
+      "text": "Bureau-verified identity \u00b7 CRS \u00b7 TransUnion"
+    },
+    {
+      "id": "ob2",
+      "scene": "onboard",
+      "at": 4.9,
+      "dur": 2.6,
+      "text": "Linked to a real bank \u00b7 Capital One"
+    },
+    {
+      "id": "ob3",
+      "scene": "onboard",
+      "at": 8.3,
+      "dur": 2.6,
+      "text": "A behavioral model that's yours alone"
+    },
+    {
+      "id": "pay1",
+      "scene": "pay",
+      "at": 0.6,
+      "dur": 2.6,
+      "text": "Every payment is scored before it clears"
+    },
+    {
+      "id": "pay2",
+      "scene": "pay",
+      "at": 8.4,
+      "dur": 2.6,
+      "text": "Approved \u2014 four signals clear \u00b7 Capital One live"
+    },
+    {
+      "id": "mon1",
+      "scene": "monitor",
+      "at": 0.6,
+      "dur": 2.8,
+      "text": "Our own model \u2014 pretrained on 136M keystrokes, on-device"
+    },
+    {
+      "id": "mon2",
+      "scene": "monitor",
+      "at": 4.2,
+      "dur": 2.4,
+      "text": "It recognizes you by how you type and move"
+    },
+    {
+      "id": "mon3",
+      "scene": "monitor",
+      "at": 7.6,
+      "dur": 2.8,
+      "text": "The instant someone else takes over, it knows"
+    },
+    {
+      "id": "con1",
+      "scene": "console",
+      "at": 0.7,
+      "dur": 2.8,
+      "text": "One platform \u00b7 every money movement, scored"
+    },
+    {
+      "id": "ses1",
+      "scene": "sessions",
+      "at": 0.7,
+      "dur": 2.8,
+      "text": "It learns each user \u2014 and catches takeovers"
+    },
+    {
+      "id": "ses2",
+      "scene": "sessions",
+      "at": 4.6,
+      "dur": 2.8,
+      "text": "Confidence collapses the moment the typist changes"
+    },
+    {
+      "id": "int1",
+      "scene": "integrations",
+      "at": 0.7,
+      "dur": 2.8,
+      "text": "Built on regulated data \u00b7 Capital One + CRS, live"
+    },
+    {
+      "id": "fr1",
+      "scene": "fraud",
+      "at": 0.6,
+      "dur": 2.6,
+      "text": "Someone else at the keyboard"
+    },
+    {
+      "id": "fr2",
+      "scene": "fraud",
+      "at": 5.4,
+      "dur": 2.4,
+      "text": "Blocked \u2014 behavior doesn't match"
+    },
+    {
+      "id": "crs1",
+      "scene": "crs",
+      "at": 0.6,
+      "dur": 2.6,
+      "text": "High value? Verified against the bureau"
+    },
+    {
+      "id": "crs2",
+      "scene": "crs",
+      "at": 7.2,
+      "dur": 2.8,
+      "text": "A synthetic identity, rejected live \u00b7 TransUnion"
+    },
+    {
+      "id": "cl1",
+      "scene": "close",
+      "at": 0.8,
+      "dur": 3.0,
+      "text": "Cadence \u2014 continuous trust for every action"
+    }
   ]
 }

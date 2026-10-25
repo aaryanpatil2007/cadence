@@ -61,7 +61,7 @@ def main():
     scenes = film["scenes"]
     OUT.mkdir(exist_ok=True)
 
-    # 1) build clips, compute trimmed durations + global starts
+    # 1) build clips, compute trimmed durations + sequential global starts
     meta = []
     gstart = 0.0
     for i, sc in enumerate(scenes):
@@ -69,28 +69,33 @@ def main():
         head, tail = sc.get("head", 0), sc.get("tail", 0)
         dur = max(full - head - tail, 0.4)
         meta.append({"name": sc["name"], "head": head, "dur": dur, "gstart": gstart})
-        gstart += dur - (T if i < len(scenes) - 1 else 0)
+        gstart += dur
         print(f"  clip {sc['name']}: full {full:.2f}s trimmed {dur:.2f}s @ {meta[i]['gstart']:.2f}s")
 
-    # 2) xfade chain (trim each input with -ss/-t)
+    # 2) dip-to-background transitions (clean page turns on the shared #f9f9f9
+    # canvas — no muddy cross-dissolve of two different dashboards), then concat
+    DIP = 0.26
     inputs = []
     for m in meta:
         inputs += ["-ss", f"{m['head']}", "-t", f"{m['dur']}",
                    "-i", str(CLIPS / f"{m['name']}.mp4")]
-    fc, prev, acc = [], "[0:v]", meta[0]["dur"]
-    for i in range(1, len(meta)):
-        off = acc - T
-        out = f"[x{i}]"
-        fc.append(f"{prev}[{i}:v]xfade=transition=fade:duration={T}:offset={off:.3f}{out}")
-        prev = out
-        acc = acc + meta[i]["dur"] - T
-    filt = ";".join(fc) if fc else "[0:v]null[x0]"
-    vlabel = prev if fc else "[0:v]"
+    fc, labels = [], []
+    for i, m in enumerate(meta):
+        d = m["dur"]
+        parts = [f"[{i}:v]format=yuv420p"]
+        if i > 0:
+            parts.append(f"fade=t=in:st=0:d={DIP}:color=0xf9f9f9")
+        # fade every clip out to the canvas (incl. the last, for a clean ending)
+        parts.append(f"fade=t=out:st={max(d - DIP, 0):.3f}:d={DIP}:color=0xf9f9f9")
+        out = f"[v{i}]"
+        fc.append(",".join(parts) + out)
+        labels.append(out)
+    fc.append("".join(labels) + f"concat=n={len(meta)}:v=1:a=0[outv]")
     novo = OUT / "novo.mp4"
-    run(["ffmpeg", "-y", *inputs, "-filter_complex", filt,
-         "-map", vlabel, "-c:v", "libx264", "-crf", str(CRF), "-preset", "fast",
+    run(["ffmpeg", "-y", *inputs, "-filter_complex", ";".join(fc),
+         "-map", "[outv]", "-c:v", "libx264", "-crf", str(CRF), "-preset", "fast",
          "-pix_fmt", "yuv420p", str(novo)])
-    total = acc
+    total = gstart
     print(f"  concatenated: {total:.2f}s")
 
     # 3) caption overlays (fade in/out, bottom-center)
